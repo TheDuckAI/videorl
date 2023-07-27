@@ -9,10 +9,11 @@ Next, we need to do some preprocessing to get this metadata formatted into a nic
 
 Once you run this, you should have a file `hd_vila.parquet` with all the relevant metadata.
 
-### Create the config for Stage 1
+### Create the config file for video processing
 
-Refer to the config.yaml file:
-Since we download these videos in HD we want to decrease the number of samples per shard (a good heuristic is having shards be ~1Gb). We wanted to detect cuts for each video and place them in the metadata so we need to add a subsampler for that. We also add a WhisperSubSampler to auto generate subtitles based on the audio for each video.
+In the config.yaml file, we will define how we want to process the videos. In the example 'config.yaml' file, we decrease the number of samples per shard (a good heuristic is having shards be ~1Gb), detect cuts for each video and place them in the metadata (using CutDetectionSubSampler), and auto generate subtitles based on the audio for each video (using WhisperSubSampler).
+
+Further explanation on config.yaml file and details on subsampler can be found in video2dataset/API.md.
 
 ### Downloading + Cut Detection + Subtitle Generation
 
