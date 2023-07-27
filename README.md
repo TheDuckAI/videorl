@@ -1,76 +1,21 @@
+# Data Pipeline using Video2Dataset
+## [HDVILA-100M](https://github.com/microsoft/XPretrain/tree/main/hd-vila-100m)
+HDVILA 100M is a dataset of 100M high-resolution videos from YouTube.
 
-# Can Wikipedia Help Offline RL? 
+### Download the metdata
+First, run `wget -O hdvila100m.zip https://hdvila.blob.core.windows.net/dataset/hdvila100m.zip?sp=r&st=2022-06-28T03:33:11Z&se=2026-01-01T11:33:11Z&spr=https&sv=2021-06-08&sr=b&sig=VaqQkLFDqKinfkaPNs1jJ1EQIYCB%2FUPYiqFqmjWye6Y%3D` to download the HD VILA 100M metadata. Next, just run `unzip hdvilla100m.zip` in order to unzip the metadata. You should now have an `hdvila100m/` directory.
 
-Machel Reid, Yutaro Yamada and Shixiang Shane Gu.
+Next, we need to do some preprocessing to get this metadata formatted into a nice parquet. The create_parquet.py script will take the downloaded metadata `.jsonl` files and create a parquet with all the relevant information.
 
-Our paper is up on [arXiv](https://arxiv.org/abs/2201.12122).
+Once you run this, you should have a file `hd_vila.parquet` with all the relevant metadata.
 
-## Overview
+### Create the config for Stage 1
 
-Official codebase for [Can Wikipedia Help Offline Reinforcement Learning?](https://arxiv.org/abs/2201.12122).
-Contains scripts to reproduce experiments. (This codebase is based on that of https://github.com/kzl/decision-transformer)
+Refer to the config.yaml file:
+Since we download these videos in HD we want to decrease the number of samples per shard (a good heuristic is having shards be ~1Gb). We wanted to detect cuts for each video and place them in the metadata so we need to add a subsampler for that. We also add a WhisperSubSampler to auto generate subtitles based on the audio for each video.
 
-![image info](./architecture.png)
+### Downloading + Cut Detection + Subtitle Generation
 
-## Instructions
+Run the command 'sbatch hd_vila_test.sbatch' in JUWELS to start running the download job. The hd_vila_test.sbatch essentially runs 'download_videos.py', which runs video2dataset on the input parquet and saves the videos, audio and subtitles along with the metadata in the webdataset format.
 
-We provide code our `code` directory containing code for our experiments.
-### Installation
-
-Experiments require MuJoCo.
-Follow the instructions in the [mujoco-py repo](https://github.com/openai/mujoco-py) to install.
-Then, dependencies can be installed with the following command:
-
-```
-conda env create -f conda_env.yml
-```
-
-### Downloading datasets
-
-Datasets are stored in the `data` directory. LM co-training and vision experiments can be found in `lm_cotraining` and `vision` directories respectively.
-Install the [D4RL repo](https://github.com/rail-berkeley/d4rl), following the instructions there.
-Then, run the following script in order to download the datasets and save them in our format:
-
-```
-python download_d4rl_datasets.py
-```
-
-### Downloading ChibiT
-
-ChibiT can be downloaded with gdown as follows:
-```bash
-gdown --id $ID #we will add it soon!
-```
-
-### Example usage
-
-Experiments can be reproduced with the following:
-
-```
-python experiment.py --env hopper --dataset medium --model_type dt --pretrained_lm gpt2 \ # or path to chibiT
---gpt_kmeans --gpt_kmeans-const 0.1 
---
-```
-
-The `run.sh` file has example commands.
-
-Adding `-w True` will log results to Weights and Biases.
-
-## Citation
-
-Please cite our paper as:
-
-```
-@misc{reid2022wikipedia,
-      title={Can Wikipedia Help Offline Reinforcement Learning?}, 
-      author={Machel Reid and Yutaro Yamada and Shixiang Shane Gu},
-      year={2022},
-      eprint={2201.12122},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG}
-}
-```
-
-## License
-
-MIT
+An example of the data can be found in:https://drive.google.com/file/d/1qOblEj6xXb0nEofJeRxO7xv91wmYlH7w/view?usp=sharing
