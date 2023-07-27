@@ -18,4 +18,5 @@ Since we download these videos in HD we want to decrease the number of samples p
 
 Run the command 'sbatch hd_vila_test.sbatch' in JUWELS to start running the download job. The hd_vila_test.sbatch essentially runs 'download_videos.py', which runs video2dataset on the input parquet and saves the videos, audio and subtitles along with the metadata in the webdataset format.
 
-An example of the data can be found in:https://drive.google.com/file/d/1qOblEj6xXb0nEofJeRxO7xv91wmYlH7w/view?usp=sharing
+An example of the processed data can be found in:
+https://drive.google.com/file/d/1qOblEj6xXb0nEofJeRxO7xv91wmYlH7w/view?usp=sharing
