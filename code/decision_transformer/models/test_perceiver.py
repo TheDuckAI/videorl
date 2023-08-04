@@ -21,8 +21,11 @@ perceiver = PerceiverResampler(dim=vis_dim)
 batch = 5
 num_images = 27
 channels = 3
-height = 512
-width = 512
+height = 224
+width = 224
+#We need these shapes to be 224, reflecting output from preprocess.
+#We still need to use openclip preprocess technically, for images.
+
 input_data = torch.randn((batch, num_images, 1, channels, height, width))
 # vision_x (torch.Tensor): Vision input
 #     shape (B, T_img, F, C, H, W) with F=1
