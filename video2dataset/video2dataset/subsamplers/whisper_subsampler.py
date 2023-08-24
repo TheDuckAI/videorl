@@ -5,12 +5,15 @@ code: https://github.com/m-bain/whisperX
 """
 import os
 import tempfile
+from youtube_transcript_api import YouTubeTranscriptApi
 
+"""
 try:
     import whisperx
     import torch
 except:  # pylint: disable=broad-except,bare-except
     pass
+"""
 
 from .subsampler import Subsampler
 
@@ -32,6 +35,7 @@ class WhisperSubsampler(Subsampler):
         compute_type="float16",
         is_slurm_task=False,
     ):
+        """
         if is_slurm_task:
             local_rank = os.environ["LOCAL_RANK"]
             device = f"cuda:{local_rank}"
@@ -40,8 +44,10 @@ class WhisperSubsampler(Subsampler):
 
         self.model = whisperx.load_model(model_name, device, compute_type=compute_type)
         self.batch_size = batch_size
+        """
 
     def __call__(self, streams, metadata=None):
+        """
         audio_bytes = streams.get("audio")
 
         for i, aud_bytes in enumerate(audio_bytes):
@@ -55,5 +61,11 @@ class WhisperSubsampler(Subsampler):
                     metadata[i]["whisper_transcript"] = result
                 except Exception as err:  # pylint: disable=broad-except
                     return [], {}, str(err)
+        """
+        try:
+            video_id = metadata["yt_meta_dict"]["info"]["id"]
+        except Exception as err:
+            return [], {}, str(err)
+        metadata["transcript"] = YouTubeTranscriptApi.get_transcript(video_id)
 
         return streams, metadata, None
