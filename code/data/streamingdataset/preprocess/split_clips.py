@@ -59,35 +59,58 @@ with MDSWriter(out=SAVE_PATH, columns=COLUMNS, compression=COMPRESSION, hashes=H
                 start_time = convert_time_to_seconds(subtitle["start"])  # Start time of the subtitle.
                 end_time = convert_time_to_seconds(subtitle["end"])  # End time of the subtitle.
 
-                while start_time < end_time:  # Cut videos between start_time and end_time into 1 second chunks.
-                    chunk_end_time = start_time + 2.0  #  2.0 second chunks because fps is 1.0 and 2.0 is larger than 1.0.
+                while start_time < end_time:
+                    chunk_start_time = start_time
+                    chunk_end_time = start_time + 1.0  #  Chunk frames every 2 seconds: chunk = [frame_0, frame_1]
+
                     if chunk_end_time > end_time:
                         chunk_end_time = end_time
 
-                    frame_idx = int(start_time * fps)
+                    chunk_frame = []
+                    chunk_subtitle = []
+                    while chunk_start_time < chunk_end_time:
 
-                    try: 
-                        frame = reader.get_data(frame_idx)
-                    except IndexError:
-                        break  # NOTE: I sometimes get IndexError even when frame_idx is less than the number of frames. I don't know why.
+                        frame_idx = int(chunk_start_time * fps)
 
-                    if frame is None:
-                        continue
+                        try:
+                            frame = reader.get_data(frame_idx)
+                            frame_array = np.array(frame)
+                            chunk_frame.append(frame_array)
+                            chunk_subtitle.append(np.frombuffer(subtitle["lines"][0].encode('utf-8'), dtype=np.uint8))
+                        except IndexError:
+                            break  # NOTE: I sometimes get IndexError even when frame_idx is less than the number of frames. I don't know why.
 
-                    frame_array = np.array(frame)
+                        if frame is None:
+                            continue
 
-                    frames.append(frame_array)
-                    subtitles.append(np.frombuffer(subtitle["lines"][0].encode('utf-8'), dtype=np.uint8))
+                        chunk_start_time += 1.0  # NOTE: 1fps
+
+                    if len(chunk_frame) > 0 and len(chunk_subtitle) > 0:
+                        frames.append(chunk_frame)
+                        subtitles.append(chunk_subtitle)
 
                     start_time = chunk_end_time
 
+        if len(frames) == 0 or len(subtitles) == 0:
+            continue
+
         try:
-            MAX_LENGTH = max([len(sub) for sub in subtitles])
+            max_length = 0
+            for sub_chunk in subtitles:
+                for sub in sub_chunk:
+                    max_length = max(max_length, len(sub))
         except ValueError:
             print('max() arg is an empty sequence')  # NOTE: If all intervals of subtitles are less than 1 second, we get an empty sequence.
             continue
+        
+        padded_subtitles = []
+        for sub_chunk in subtitles:
+            padded_sub_chunk = []
+            for sub in sub_chunk:
+                padded_sub_chunk.append(np.pad(sub, (0, max_length - len(sub))))  # NOTE: Pad each subtitle to the same length
+            padded_subtitles.append(padded_sub_chunk)
 
-        padded_subtitles = [np.pad(sub, (0, MAX_LENGTH - len(sub))) for sub in subtitles]  # NOTE: Pad each subtitle to the same length
+        # padded_subtitles = [np.pad(sub, (0, MAX_LENGTH - len(sub))) for sub in subtitles]
 
         video_data = {
             'frame': np.asarray(frames, dtype=np.float32),

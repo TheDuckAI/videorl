@@ -17,7 +17,9 @@ os.makedirs(SAVE_PATH, exist_ok=True)
 
 COLUMNS = {
     'frame': 'ndarray',
-    'subtitle': 'ndarray'
+    'subtitle': 'ndarray',
+    'start_time': 'ndarray',
+    'end_time': 'ndarray'
 }
 COMPRESSION = 'zstd'
 HASHES = 'sha1', 'xxh64'
@@ -43,6 +45,8 @@ with MDSWriter(out=SAVE_PATH, columns=COLUMNS, compression=COMPRESSION, hashes=H
 
         frames = []
         subtitles = []
+        start_times = []
+        end_times = []
 
         with open(json_file_path, 'r') as f:
             data = json.load(f)
@@ -74,6 +78,8 @@ with MDSWriter(out=SAVE_PATH, columns=COLUMNS, compression=COMPRESSION, hashes=H
 
                     frames.append(frame_array)  # NOTE: Save the frame only when there is a subtitle.
                     subtitles.append(np.frombuffer(subtitle["lines"][0].encode('utf-8'), dtype=np.uint8))
+                    start_times.append(start_time)
+                    end_times.append(end_time)
 
                     start_time += 1.0  # NOTE: 1fps
 
@@ -88,7 +94,9 @@ with MDSWriter(out=SAVE_PATH, columns=COLUMNS, compression=COMPRESSION, hashes=H
 
         video_data = {
             'frame': np.asarray(frames, dtype=np.float32),
-            'subtitle': np.asarray(padded_subtitles)
+            'subtitle': np.asarray(padded_subtitles),
+            'start_time': np.asarray(start_times, dtype=np.float32),
+            'end_time': np.asarray(end_times, dtype=np.float32)
         }
 
         save_file.write(video_data)
