@@ -15,6 +15,14 @@ video2dataset \\
 --output_folder="dataset"
 ```
 - https://github.com/iejMac/video2dataset
+
+### Change Videos to 1fps
+```bash
+cd preprocess
+./change_fps.sh
+./copy_json.sh
+```
+
 ### Split Videos & Subtitles and Save them as StreamingDataset
 ```bash
 cd preprocess
