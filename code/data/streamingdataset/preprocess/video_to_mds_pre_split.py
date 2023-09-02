@@ -12,7 +12,7 @@ def convert_time_to_seconds(time_str):
     return hours * 3600 + minutes * 60 + seconds
 
 
-SAVE_PATH = "/root/projects/rl-nlp/videos/data_downsampled/mds-not-split/00000"
+SAVE_PATH = "/root/projects/rl-nlp/videos/data_downsampled/mds-split/00000"
 os.makedirs(SAVE_PATH, exist_ok=True)
 
 COLUMNS = {
@@ -102,9 +102,16 @@ with MDSWriter(out=SAVE_PATH, columns=COLUMNS, compression=COMPRESSION, hashes=H
             frame_array = np.array(frame)
             frames.append(frame_array)
 
+        chunk_unit = 5
+        num_chunks, remainder = divmod(len(frames), chunk_unit)
+
+        if remainder != 0:
+            chunked_frame = np.array_split(np.asarray(frames[:-remainder], dtype=np.float32), num_chunks, axis=0)
+            chunked_subtitle = np.array_split(np.asarray(subtitles[:-remainder]), num_chunks, axis=0)
+
         video_data = {
-            'frame': np.asarray(frames, dtype=np.float32),
-            'subtitle': np.asarray(subtitles)
+            'frame': np.asarray(chunked_frame),
+            'subtitle': np.asarray(chunked_subtitle)
         }
 
         save_file.write(video_data)

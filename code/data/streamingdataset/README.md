@@ -24,7 +24,13 @@ cd preprocess
 ```
 
 ### Split Videos & Subtitles and Save them as StreamingDataset
+Option1
 ```bash
 cd preprocess
-python split_clips.py
+python video_to_mds.py
+```
+Option2
+```bash
+cd preprocess
+python video_to_mds_pre_split.py
 ```
