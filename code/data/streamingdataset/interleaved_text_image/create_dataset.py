@@ -135,19 +135,19 @@ class ConcatTokensDataset(IterableDataset):
                 data = json.load(f)
                 fps = reader.get_meta_data()['fps']
                 try:
-                    subtitle_data_list = data["yt_meta_dict"]["subtitles"]  # NOTE: This is not always available
+                    subtitle_info_list = data["yt_meta_dict"]["subtitles"]  # NOTE: This is not always available
                 except KeyError:
                     continue
 
-                for subtitle_data in subtitle_data_list:
+                for subtitle_info in subtitle_info_list:
                     subtitle_timestamp = {}
-                    start_time = convert_time_to_seconds(subtitle_data["start"])  # Start time of the subtitle.
-                    end_time = convert_time_to_seconds(subtitle_data["end"])  # End time of the subtitle.
+                    start_time = convert_time_to_seconds(subtitle_info["start"])  # Start time of the subtitle.
+                    end_time = convert_time_to_seconds(subtitle_info["end"])  # End time of the subtitle.
 
                     subtitle_timestamp["start"] = start_time
                     subtitle_timestamp["end"] = end_time
 
-                    subtitle_text_eoncoded = self.tokenizer(subtitle_data["lines"][0],
+                    subtitle_text_eoncoded = self.tokenizer(subtitle_info["lines"][0],
                                                             truncation=False,
                                                             padding=False)
                     subtitle_text = self.bos_tokens + subtitle_text_eoncoded['input_ids'] + self.eos_tokens
@@ -160,7 +160,7 @@ class ConcatTokensDataset(IterableDataset):
             }
 
             yield {
-                'frame': np.asarray(frames, dtype=np.float32).transpose(0, 3, 1, 2),  # N, H, W, C -> N, C, H, W
+                'frame': np.asarray(frames, dtype=np.float32),  # N, H, W, C
                 'subtitle_data': subtitle_data,
             }
 
