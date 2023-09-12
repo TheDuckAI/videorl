@@ -48,8 +48,8 @@ async def collect_videos(
         async with session.get(
             channel_link + '/videos', headers = {'User-Agent': USER_AGENT}, timeout = 5
         ) as response:
-            if response.ok is False:
-                print('bad response text', await response.text)
+            if response.ok is False and response.status != 404:
+                print('bad response text', await response.text())
                 return response.ok
         
             # find the channel data within the html
@@ -83,8 +83,8 @@ async def collect_videos(
                 BROWSE_ENDPOINT, headers = {'User-Agent': USER_AGENT},
                 json = data, timeout = 5
             ) as response:
-                if response.ok is False:
-                    print('bad response text', await response.text)
+                if response.ok is False and response.status != 404:
+                    print('bad response text', await response.text())
                     return response.ok
                 
                 video_data = await response.json()
@@ -110,6 +110,7 @@ async def worker(channels_left):
              if ok_response is False:
                 async with print_lock:
                     print("bad response, stopping worker (try restarting)")
+                return
         except Exception as e:
             async with print_lock:
                 print(f'Exception caught for {channel_link}:', e)
@@ -159,7 +160,7 @@ async def main(num_workers):
     ])
 
 try:
-    asyncio.run(main(num_workers = 1))
+    asyncio.run(main(num_workers = 20))
 except (KeyboardInterrupt, Exception) as e:
     # print("\nfinal exception:", e)
     print(traceback.format_exc())
