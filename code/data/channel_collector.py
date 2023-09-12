@@ -65,8 +65,8 @@ async def collect_videos(
             )
             channel_info = [channel_link] + parse_channel_info(channel_data)
             
-            # ignore "Topic" channels
-            if channel_info[1].endswith(" - Topic"):
+            # ignore title-less or "Topic" channels
+            if channel_info[1] is None or channel_info[1].endswith(" - Topic"):
                 return
             
             video_rows, token = parse_videos(channel_data)
