@@ -139,7 +139,7 @@ def parse_channel_info(response):
     isFamilySafe = str(getValue(response, ["metadata", "channelMetadataRenderer", "isFamilySafe"]))
     tags = getValue(response, ["microformat", "microformatDataRenderer", "tags"])
     if tags is not None:
-        tags = tsv_clean(', '.join())
+        tags = tsv_clean(', '.join(tags))
     return [title, description, subscribers, isFamilySafe, tags]
 
 
@@ -147,11 +147,21 @@ def parse_videos(response, is_continuation = False):
     video_infos = None
     if is_continuation:
         video_infos = getValue(
-            response, ['onResponseReceivedActions',0, 'appendContinuationItemsAction', 'continuationItems']
+            response, ['onResponseReceivedActions', 0, 'appendContinuationItemsAction', 'continuationItems']
         )
     else:
+        # initial get request, ensure there are videos to begin with
+        tabs = getValue(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs'])
+        video_tab_index = None
+        for i, tab in enumerate(tabs):
+            if 'tabRenderer' in tab and getValue(tab, ['tabRenderer', 'title']) == "Videos":
+                video_tab_index = i
+        
+        if video_tab_index is None:
+            return None, None
+
         video_infos = getValue(
-            response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs', 1, 'tabRenderer', 'content', 'richGridRenderer', 'contents']
+            response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs', video_tab_index, 'tabRenderer', 'content', 'richGridRenderer', 'contents']
         )
 
     video_rows = []
@@ -161,15 +171,16 @@ def parse_videos(response, is_continuation = False):
             token = getValue(info, ['continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'])
         else:
             video_data = getValue(info, ['richItemRenderer', 'content', 'videoRenderer'])
-            video_rows.append(parse_video_renderer(video_data))
+
+            if 'publishedTimeText' not in video_data:
+                # unpublished video for the future
+                continue
+
+            id = video_data["videoId"]
+            title = tsv_clean(video_data['title']['runs'][0]['text'])
+            # description = video_data['descriptionSnippet']['runs'][0]['text']
+            publish = dateparser.parse(video_data['publishedTimeText']['simpleText']).strftime("%Y-%m-%d")
+            length = video_data['lengthText']['simpleText']
+            views = str(int(video_data['viewCountText']['simpleText'].split(' ')[0].replace(',', '').replace('No', '0')))
+            video_rows.append([id, title, publish, length, views])
     return video_rows, token
-
-
-def parse_video_renderer(video_data):
-    id = video_data["videoId"]
-    title = tsv_clean(video_data['title']['runs'][0]['text'])
-    # description = video_data['descriptionSnippet']['runs'][0]['text']
-    publish = dateparser.parse(video_data['publishedTimeText']['simpleText']).strftime("%Y-%m-%d")
-    length = video_data['lengthText']['simpleText']
-    views = str(int(video_data['viewCountText']['simpleText'].split(' ')[0].replace(',', '')))
-    return [id, title, publish, length, views]
