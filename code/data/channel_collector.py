@@ -127,7 +127,7 @@ async def worker(channels_left):
 async def main(num_workers):
     # load all channels
     channels = list()
-    with open('channels.txt', 'r') as f:
+    with open('shuffled_channels.txt', 'r') as f:
         for line in f:
             channels.append(line.strip())
 
@@ -165,7 +165,7 @@ async def main(num_workers):
     ])
 
 try:
-    asyncio.run(main(num_workers = 50))
+    asyncio.run(main(num_workers = 200))
 except (KeyboardInterrupt, Exception) as e:
     # print("\nfinal exception:", e)
     print(traceback.format_exc())
