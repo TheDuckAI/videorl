@@ -63,20 +63,20 @@ async def collect_videos(
             channel_data = json.loads(
                 soup(text = re.compile(data_str))[0].strip(data_str).strip(';')
             )
-            async with write_lock:
-                channel_info = [channel_link] + parse_channel_info(channel_data)
+            channel_info = [channel_link] + parse_channel_info(channel_data)
             
-                # ignore "Topic" channels
-                if channel_info[1].endswith(" - Topic"):
-                    return
-                
-                channel_writer.writerow(channel_info)
-                video_rows, token = parse_videos(channel_data)
+            # ignore "Topic" channels
+            if channel_info[1].endswith(" - Topic"):
+                return
+            
+            video_rows, token = parse_videos(channel_data)
 
-                # some channels may not have videos
-                if video_rows is None:
-                    return
-        
+            # some channels may not have videos
+            if video_rows is None:
+                return
+
+            async with write_lock:
+                channel_writer.writerow(channel_info)        
                 video_writer.writerows(video_rows)
 
         # continue "scrolling" through channel's videos
@@ -119,8 +119,8 @@ async def worker(channels_left):
             async with print_lock:
                 print(f'Exception caught for {channel_link}:', e)
         
-        async with print_lock:
-            print('collected all video from the channel', channel_link, end = "\t\t\t\r")
+        # async with print_lock:
+        #     print('collected all video from the channel', channel_link, end = "\t\t\t\r")
         
 
 
@@ -159,12 +159,13 @@ async def main(num_workers):
             )
 
     # start the workers
+    print('starting workers now, run `wc -l channels.tsv` to monitor number of channels collected')
     await asyncio.gather(*[
         worker(channels) for _ in range(num_workers)
     ])
 
 try:
-    asyncio.run(main(num_workers = 20))
+    asyncio.run(main(num_workers = 50))
 except (KeyboardInterrupt, Exception) as e:
     # print("\nfinal exception:", e)
     print(traceback.format_exc())
