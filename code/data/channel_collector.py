@@ -48,7 +48,11 @@ async def collect_videos(
         async with session.get(
             channel_link + '/videos', headers = {'User-Agent': USER_AGENT}, timeout = 5
         ) as response:
-            if response.ok is False and response.status != 404:
+            # ignore 404 and just continue
+            if response.status == 404:
+                return
+            
+            if response.ok is False:
                 print('bad response text', await response.text())
                 return response.ok
         
@@ -83,7 +87,7 @@ async def collect_videos(
                 BROWSE_ENDPOINT, headers = {'User-Agent': USER_AGENT},
                 json = data, timeout = 5
             ) as response:
-                if response.ok is False and response.status != 404:
+                if response.ok is False:
                     print('bad response text', await response.text())
                     return response.ok
                 

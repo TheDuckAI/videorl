@@ -132,10 +132,12 @@ def text_to_num(text):
 def parse_channel_info(response):
     title =  getValue(response, ["metadata", "channelMetadataRenderer", "title"])
     description = tsv_clean(getValue(response, ["metadata", "channelMetadataRenderer", "description"]))
-    subscribers = text_to_num(getValue(
+    subscribers = getValue(
         response,
         ["header", "c4TabbedHeaderRenderer", "subscriberCountText", "simpleText"]
-    ).split(' ')[0])
+    )
+    if subscribers is not None:
+        subscribers = text_to_num(subscribers.split(' ')[0])
     isFamilySafe = str(getValue(response, ["metadata", "channelMetadataRenderer", "isFamilySafe"]))
     tags = getValue(response, ["microformat", "microformatDataRenderer", "tags"])
     if tags is not None:
