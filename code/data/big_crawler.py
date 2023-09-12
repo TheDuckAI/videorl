@@ -64,7 +64,7 @@ async def get_recommendations(
 
 async def worker(unexplored_videos, num_reqs, channels_set = channels):
     async with print_lock:
-            print('worker started')
+        print('worker started')
 
     while True:
         # use ipv6 (helps with blocks) and leave concurrency to parallel connections
