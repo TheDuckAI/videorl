@@ -127,7 +127,7 @@ async def worker(channels_left):
 async def main(num_workers):
     # load all channels
     channels = list()
-    with open('shuffled_channels.txt', 'r') as f:
+    with open('shuffled_channels.txt', 'r', encoding = 'utf-8') as f:
         for line in f:
             channels.append(line.strip())
 
