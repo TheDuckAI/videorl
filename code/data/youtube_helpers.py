@@ -181,10 +181,18 @@ def parse_videos(response, is_continuation = False):
                 continue
 
             id = video_data["videoId"]
-            title = tsv_clean(video_data['title']['runs'][0]['text'])
-            # description = video_data['descriptionSnippet']['runs'][0]['text']
+            title = getValue(video_data, ['title', 'runs', 0, 'text'])
+
+            if title is not None:
+                title = tsv_clean(title)
+
             publish = dateparser.parse(video_data['publishedTimeText']['simpleText']).strftime("%Y-%m-%d")
-            length = video_data['lengthText']['simpleText']
-            views = str(int(video_data['viewCountText']['simpleText'].split(' ')[0].replace(',', '').replace('No', '0')))
+
+            length = getValue(video_data, ['lengthText', 'simpleText'])
+
+            views = video_data['viewCountText']['simpleText']
+            if views is not None:
+                views = str(int(views.split(' ')[0].replace(',', '').replace('No', '0')))
+
             video_rows.append([id, title, publish, length, views])
     return video_rows, token
