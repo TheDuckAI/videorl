@@ -190,7 +190,7 @@ def parse_videos(response, is_continuation = False):
 
             length = getValue(video_data, ['lengthText', 'simpleText'])
 
-            views = video_data['viewCountText']['simpleText']
+            views = getValue(video_data, ['viewCountText', 'simpleText'])
             if views is not None:
                 views = str(int(views.split(' ')[0].replace(',', '').replace('No', '0')))
 
