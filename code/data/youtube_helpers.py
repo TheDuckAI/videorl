@@ -112,6 +112,8 @@ class csv_writer:
 
 
 def tsv_clean(dirty_str):
+    if dirty_str is None:
+        return None
     return dirty_str.replace('\n', '').replace('\t', '')
 
 
