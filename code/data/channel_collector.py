@@ -139,12 +139,13 @@ async def main(num_workers):
                 ['link', 'name', 'description', 'subscribers', 'isFamilySafe', 'tags']
             )
         else:
-            count = 0
+            collected = set()
             while True:
                 line = f.readline()
                 if line == '':
                     break
-                count += 1
+                collected.add(line.strip())
+            count = len(collected)
             print(f'found {count} many channels already collected out of {len(channels)}')
 
             # remove channels already read (but reprocess last 100 channels)
