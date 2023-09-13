@@ -64,7 +64,7 @@ async def collect_videos(
         if channel_info[1] is None or channel_info[1].endswith(" - Topic"):
             return
         
-        video_rows, token = parse_videos(channel_data)
+        video_rows, token = parse_videos(channel_data, channel_link)
 
         # some channels may not have videos
         if video_rows is None:
@@ -87,7 +87,7 @@ async def collect_videos(
                 return response.ok
             
             video_data = await response.json()
-            video_rows, token = parse_videos(video_data, is_continuation = True)
+            video_rows, token = parse_videos(video_data, channel_link, is_continuation = True)
             async with write_lock:
                 video_writer.writerows(video_rows)
 
@@ -157,7 +157,7 @@ async def main(num_workers):
     with open('videos.tsv', 'r', encoding = "utf-8") as f:
         if f.readline() == '':
             video_writer.writerow(
-                ['id', 'title', 'date', 'length', 'views']
+                ['channel_link', 'id', 'title', 'date', 'length', 'views']
             )
 
     # use a singular session to benefit from connection pooling

@@ -147,7 +147,7 @@ def parse_channel_info(response):
     return [title, description, subscribers, isFamilySafe, tags]
 
 
-def parse_videos(response, is_continuation = False):
+def parse_videos(response, channel_link, is_continuation = False):
     video_infos = None
     if is_continuation:
         video_infos = getValue(
@@ -194,5 +194,5 @@ def parse_videos(response, is_continuation = False):
             if views is not None:
                 views = str(int(views.split(' ')[0].replace(',', '').replace('No', '0')))
 
-            video_rows.append([id, title, publish, length, views])
+            video_rows.append([channel_link, id, title, publish, length, views])
     return video_rows, token
