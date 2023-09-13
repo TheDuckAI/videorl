@@ -159,9 +159,19 @@ class ConcatTokensDataset(IterableDataset):
                 'subtitle_timestamp': subtitle_timestamps,
             }
 
+            metadata = {
+                'num_frames': len(frames),
+                'height': frames[0].shape[0],
+                'width': frames[0].shape[1],
+                'channels': frames[0].shape[2],
+                'num_subtitles': len(subtitle_texts),
+                'fps': fps
+            }
+
             yield {
                 'frame': np.asarray(frames, dtype=np.float32).tobytes(),  # N, H, W, C
                 'subtitle_data': json.dumps(subtitle_data).encode('utf-8'),
+                'metadata': json.dumps(metadata).encode('utf-8')
             }
 
 # NOTE: Always concat tokens.
@@ -308,7 +318,7 @@ def main(args: Namespace) -> None:
     tokenizer = AutoTokenizer.from_pretrained(args.tokenizer)
     # we will enforce length, so suppress warnings about sequences too long for the model
     tokenizer.model_max_length = int(1e30)
-    columns = {'frame': 'ndarray', 'subtitle_data': 'json'}
+    columns = {'frame': 'ndarray', 'subtitle_data': 'json', 'metadata': 'json'}
 
     # NOTE: Always concat tokens.
     # else:

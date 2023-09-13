@@ -202,7 +202,9 @@ class StreamingInterleavedDataset(StreamingDataset):
             raise RuntimeError(
                 'StreamingTextDataset needs samples to have both `frame` and `subtitle_data` column'
             )
-        frames = self._read_binary_data(sample.get('frame', None))  # torch.tensor
+        metadata = json.loads(sample.get('metadata', None).decode('utf-8'))
+
+        frames = self._read_binary_data(sample.get('frame', None)).view(metadata['num_frames'], metadata['height'], metadata['width'], metadata['channels'])  # torch.tensor
 
         # Chunk frames (I don't chunk the subtitles.)
         num_chunks, remainder = divmod(len(frames), self.chunk_size)
