@@ -160,8 +160,8 @@ class ConcatTokensDataset(IterableDataset):
             }
 
             yield {
-                'frame': np.asarray(frames, dtype=np.float32),  # N, H, W, C
-                'subtitle_data': subtitle_data,
+                'frame': np.asarray(frames, dtype=np.float32).tobytes(),  # N, H, W, C
+                'subtitle_data': json.dumps(subtitle_data).encode('utf-8'),
             }
 
 # NOTE: Always concat tokens.

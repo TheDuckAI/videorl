@@ -19,6 +19,7 @@ import argparse
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
 
 import itertools
+import json
 
 
 def build_tokenizer(om_tokenizer_config: DictConfig) -> PreTrainedTokenizerBase:
@@ -210,7 +211,7 @@ class StreamingInterleavedDataset(StreamingDataset):
         else:
             chunked_frames = torch.stack(torch.chunk(frames, num_chunks, dim=0), dim=0)
 
-        subtitle_data = sample.get('subtitle_data', None)
+        subtitle_data = json.loads(sample.get('subtitle_data', None).decode('utf-8'))
         subtitles = torch.tensor(list(itertools.chain.from_iterable(subtitle_data['subtitle'])))  # torch.tensor
 
         return (subtitles, chunked_frames)
