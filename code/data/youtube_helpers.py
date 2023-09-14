@@ -174,6 +174,8 @@ def parse_videos(response, channel_link, is_continuation = False):
             response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs', video_tab_index, 'tabRenderer', 'content', 'richGridRenderer', 'contents']
         )
 
+    assert video_infos is not None, "Unable to find videos in response"
+
     video_rows = []
     token = None
     for info in video_infos:
