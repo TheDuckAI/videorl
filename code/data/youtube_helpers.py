@@ -1,5 +1,4 @@
 import dateparser
-import os
 
 # constants used for requests
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/116.0"
@@ -105,7 +104,7 @@ class csv_writer:
         for i in range(len(row)):
             if row[i] is None:
                 row[i] = ''
-        self.file.write(self.delimiter.join(row) + os.linesep)
+        self.file.write(self.delimiter.join(row) +  "\r\n")
     
     def writerows(self, rows):
         for row in rows:
@@ -115,7 +114,7 @@ class csv_writer:
 def tsv_clean(dirty_str):
     if dirty_str is None:
         return None
-    return dirty_str.replace('\n', '').replace('\t', '').replace('\r', '')
+    return dirty_str.replace('\r\n', '\n').replace('\t', '')
 
 
 denominations = {
