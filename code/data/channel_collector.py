@@ -117,7 +117,7 @@ async def worker(channels_left, session):
                 print('Caught a timeout')
         except Exception as e:
             async with print_lock:
-                error_file.write('Exception caught and written to error file')
+                print(f'Exception caught for {channel_link} and written to error file')
             async with error_lock:
                 error_file.write(f'Exception caught for {channel_link}')
                 error_file.write(traceback.format_exc())
