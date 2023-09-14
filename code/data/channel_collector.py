@@ -165,7 +165,7 @@ async def main(num_workers):
     with open('videos.tsv', 'r', encoding = "utf-8") as f:
         if f.readline() == '':
             video_writer.writerow(
-                ['channel_link', 'id', 'title', 'date', 'length', 'views']
+                ['channel_link', 'id', 'title', 'date', 'length', 'views', 'description_snippet']
             )
 
     # use a singular session to benefit from connection pooling
