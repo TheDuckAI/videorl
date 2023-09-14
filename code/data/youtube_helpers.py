@@ -132,20 +132,33 @@ def text_to_num(text):
         return str(int(text))
 
 
-def parse_channel_info(response):
+def parse_channel_info(response, channel_link):
+    id = getValue(response, ["metadata", "channelMetadataRenderer", "externalId"])
+    
     title =  getValue(response, ["metadata", "channelMetadataRenderer", "title"])
-    description = tsv_clean(getValue(response, ["metadata", "channelMetadataRenderer", "description"]))
+    
     subscribers = getValue(
         response,
         ["header", "c4TabbedHeaderRenderer", "subscriberCountText", "simpleText"]
     )
     if subscribers is not None:
         subscribers = text_to_num(subscribers.split(' ')[0])
-    isFamilySafe = str(getValue(response, ["metadata", "channelMetadataRenderer", "isFamilySafe"]))
-    tags = getValue(response, ["microformat", "microformatDataRenderer", "tags"])
-    if tags is not None:
-        tags = tsv_clean(', '.join(tags))
-    return [title, description, subscribers, isFamilySafe, tags]
+    
+    num_vids_shorts = getValue(response, ["header", "c4TabbedHeaderRenderer", "videosCountText", "runs", 0, "text"])
+    if num_vids_shorts is not None:
+        num_vids_shorts = text_to_num(num_vids_shorts)
+    
+    description = tsv_clean(getValue(response, ["metadata", "channelMetadataRenderer", "description"]))
+    
+    isFamilySafe = getValue(response, ["metadata", "channelMetadataRenderer", "isFamilySafe"])
+    if isFamilySafe is not None:
+        isFamilySafe = str(isFamilySafe)
+    
+    keywords = getValue(response, ["metadata", "channelMetadataRenderer", "keywords"])
+    if keywords is not None:
+        keywords = tsv_clean(keywords)
+
+    return [channel_link, id, title, subscribers, num_vids_shorts, description, isFamilySafe, keywords]
 
 
 def parse_videos(response, channel_link, is_continuation = False):

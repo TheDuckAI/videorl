@@ -59,7 +59,7 @@ async def collect_videos(
         channel_data = json.loads(
             soup(text = re.compile(data_str))[0].strip(data_str).strip(';')
         )
-        channel_info = [channel_link] + parse_channel_info(channel_data)
+        channel_info = parse_channel_info(channel_data, channel_link)
         
         # ignore title-less or "Topic" channels
         if channel_info[1] is None or channel_info[1].endswith(" - Topic"):
