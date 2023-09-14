@@ -121,6 +121,7 @@ async def worker(channels_left, session):
             async with error_lock:
                 error_file.write(f'Exception caught for {channel_link}')
                 error_file.write(traceback.format_exc())
+                error_file.flush()
         
         # async with print_lock:
         #     print('collected all video from the channel', channel_link, end = "\t\t\t\r")
