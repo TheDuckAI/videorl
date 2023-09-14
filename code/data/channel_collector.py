@@ -34,9 +34,10 @@ video_file = open('videos.tsv', 'a', encoding = "utf-8")
 video_writer = csv_writer(video_file, delimiter = '\t')
 
 error_file = open('collection_errors.txt', 'a', encoding = "utf-8")
-############################################################################
 
 
+
+########################## FUNCTION DECLARATIONS ###########################
 async def collect_videos(
     channel_link, session, channel_writer = channel_writer, video_writer = video_writer
 ):
@@ -144,7 +145,7 @@ async def main(num_workers):
     with open('channels.tsv', 'r', encoding = "utf-8") as f:
         if f.readline() == '':
             channel_writer.writerow(
-                ['link', 'name', 'description', 'subscribers', 'isFamilySafe', 'tags']
+                ['link', 'id', 'name', 'subscribers', 'num_videos', 'description', 'isFamilySafe', 'keywords']
             )
         else:
             collected = set()
@@ -185,7 +186,6 @@ async def main(num_workers):
 # windows specific fix
 if os.name == 'nt': 
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
 
 try:
     asyncio.run(main(num_workers = 50))
