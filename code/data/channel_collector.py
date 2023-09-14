@@ -21,13 +21,11 @@ from youtube_helpers import (
 
 
 
-# windows specific fix
-if os.name == 'nt': 
-    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-
+######################### GLOBAL VARIABLES #################################
 write_lock = asyncio.Lock()
 print_lock = asyncio.Lock()
 channel_lock = asyncio.Lock()
+error_lock = asyncio.Lock()
 
 channel_file = open('channels.tsv', 'a', encoding = "utf-8")
 channel_writer = csv_writer(channel_file, delimiter = '\t')
@@ -35,6 +33,8 @@ channel_writer = csv_writer(channel_file, delimiter = '\t')
 video_file = open('videos.tsv', 'a', encoding = "utf-8")
 video_writer = csv_writer(video_file, delimiter = '\t')
 
+error_file = open('collection_errors.txt', 'a', encoding = "utf-8")
+############################################################################
 
 
 async def collect_videos(
@@ -117,8 +117,10 @@ async def worker(channels_left, session):
                 print('Caught a timeout')
         except Exception as e:
             async with print_lock:
-                print(f'Exception caught for {channel_link}:', e)
-                print(traceback.format_exc())
+                error_file.write('Exception caught and written to error file')
+            async with error_lock:
+                error_file.write(f'Exception caught for {channel_link}')
+                error_file.write(traceback.format_exc())
         
         # async with print_lock:
         #     print('collected all video from the channel', channel_link, end = "\t\t\t\r")
@@ -153,7 +155,6 @@ async def main(num_workers):
             if count > 0:
                 channels = channels[:-count]
             print(f'will reprocess last 100 channels leaving {len(channels)} channels left')
-
     with open('videos.tsv', 'r', encoding = "utf-8") as f:
         if f.readline() == '':
             video_writer.writerow(
@@ -161,7 +162,7 @@ async def main(num_workers):
             )
 
     # use a singular session to benefit from connection pooling
-    # use ipv6 (helps with blocks) and leave concurrency to parallel connections
+    # use ipv6 (helps with blocks)
     conn = TCPConnector(limit = None, family = socket.AF_INET6, force_close = True)
     async with ClientSession(
         base_url = BASE, connector = conn, cookie_jar = DummyCookieJar()
@@ -171,6 +172,14 @@ async def main(num_workers):
         await asyncio.gather(*[
             worker(channels, session) for _ in range(num_workers)
         ])
+
+
+
+##################### TOP LEVEL CODE ##########################
+# windows specific fix
+if os.name == 'nt': 
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 
 try:
     asyncio.run(main(num_workers = 50))
