@@ -88,6 +88,11 @@ async def collect_videos(
             
             video_data = await response.json()
             video_rows, token = parse_videos(video_data, channel_link, is_continuation = True)
+            
+            # empty continaution
+            if video_rows is None:
+                return
+            
             async with write_lock:
                 video_writer.writerows(video_rows)
 
@@ -119,7 +124,7 @@ async def worker(channels_left, session):
             async with print_lock:
                 print(f'Exception caught for {channel_link} and written to error file')
             async with error_lock:
-                error_file.write(f'Exception caught for {channel_link}')
+                error_file.write(f'Exception caught for {channel_link}\n')
                 error_file.write(traceback.format_exc())
                 error_file.flush()
         

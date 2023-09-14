@@ -154,6 +154,10 @@ def parse_videos(response, channel_link, is_continuation = False):
         video_infos = getValue(
             response, ['onResponseReceivedActions', 0, 'appendContinuationItemsAction', 'continuationItems']
         )
+
+        # continuation returned empty (i.e. no more videos to collect)
+        if 'responseContext' in response and video_infos is None:
+            return None, None
     else:
         # initial get request, ensure there are videos to begin with
         tabs = getValue(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs'])
@@ -162,6 +166,7 @@ def parse_videos(response, channel_link, is_continuation = False):
             if 'tabRenderer' in tab and getValue(tab, ['tabRenderer', 'title']) == "Videos":
                 video_tab_index = i
         
+        # no videos in channel
         if video_tab_index is None:
             return None, None
 
