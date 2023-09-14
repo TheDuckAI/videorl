@@ -114,7 +114,7 @@ class csv_writer:
 def tsv_clean(dirty_str):
     if dirty_str is None:
         return None
-    return dirty_str.replace('\r\n', '\n').replace('\t', '')
+    return dirty_str.strip().replace('\r\n', '\n').replace('\t', '')
 
 
 denominations = {
@@ -145,7 +145,7 @@ def parse_channel_info(response, channel_link):
     
     num_vids_shorts = getValue(response, ["header", "c4TabbedHeaderRenderer", "videosCountText", "runs", 0, "text"])
     if num_vids_shorts is not None:
-        num_vids_shorts = text_to_num(num_vids_shorts)
+        num_vids_shorts = text_to_num(num_vids_shorts.split(' ')[0].replace(',', '').replace('No', '0'))
     
     description = tsv_clean(getValue(response, ["metadata", "channelMetadataRenderer", "description"]))
     
