@@ -134,31 +134,33 @@ async def worker(channels_left, session):
 
 async def main(num_workers):
     # load all channels
-    channels = list()
+    channels = set()
     with open('shuffled_channels.txt', 'r', encoding = 'utf-8') as f:
         for line in f:
-            channels.append(line.strip())
+            channels.add(line.strip())
 
     # continue from previous run or handle cold start
     with open('channels.csv', 'r', encoding = "utf-8") as f:
         if f.readline() == '':
+            # cold start
             channel_writer.writerow(
                 ['link', 'id', 'name', 'subscribers', 'num_videos', 'description', 'isFamilySafe', 'keywords']
             )
         else:
-            collected = set()
-            while True:
-                line = f.readline()
-                if line == '':
-                    break
-                collected.add(line.strip())
-            count = len(collected)
-            print(f'found {count} many channels already collected out of {len(channels)}')
+            # read in collected channels
+            collected = []
+            with open('channels.csv', 'r', encoding = 'utf-8') as f:
+                for row in csv.reader(f):
+                    if len(row) == 0:
+                        continue
+                    collected.append(row[0]) ## the link
+            collected_set = set(collected)
+            print(f'found {len(collected_set)} many channels already collected out of {len(channels)}')
 
             # remove channels already read (but reprocess last 100 channels)
-            count = count - 100
-            if count > 0:
-                channels = channels[:-count]
+            channels = channels - collected_set
+            channels = list(channels)
+            channels = channels + collected[-100:]
             print(f'will reprocess last 100 channels leaving {len(channels)} channels left')
     with open('videos.csv', 'r', encoding = "utf-8") as f:
         if f.readline() == '':
@@ -173,7 +175,7 @@ async def main(num_workers):
         base_url = BASE, connector = conn, cookie_jar = DummyCookieJar()
     ) as session:
         # start the workers
-        print('starting workers now, run `wc -l channels.csv` to monitor number of channels collected')
+        print('starting workers now, try loading `channels.csv` (say with pandas) to monitor progress')
         await asyncio.gather(*[
             worker(channels, session) for _ in range(num_workers)
         ])
