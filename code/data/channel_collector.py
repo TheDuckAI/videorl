@@ -1,6 +1,7 @@
 import asyncio
 import socket
 import copy
+import csv
 import json
 import re
 import os
@@ -14,7 +15,6 @@ from youtube_helpers import (
     BROWSE_ENDPOINT,
     PAYLOAD,
     USER_AGENT,
-    csv_writer,
     parse_channel_info,
     parse_videos,
 )
@@ -27,11 +27,11 @@ print_lock = asyncio.Lock()
 channel_lock = asyncio.Lock()
 error_lock = asyncio.Lock()
 
-channel_file = open('channels.tsv', 'a', encoding = "utf-8")
-channel_writer = csv_writer(channel_file, delimiter = '\t')
+channel_file = open('channels.csv', 'a', encoding = "utf-8")
+channel_writer = csv.writer(channel_file)
 
-video_file = open('videos.tsv', 'a', encoding = "utf-8")
-video_writer = csv_writer(video_file, delimiter = '\t')
+video_file = open('videos.csv', 'a', encoding = "utf-8")
+video_writer = csv.writer(video_file)
 
 error_file = open('collection_errors.txt', 'a', encoding = "utf-8")
 
@@ -142,7 +142,7 @@ async def main(num_workers):
             channels.append(line.strip())
 
     # continue from previous run or handle cold start
-    with open('channels.tsv', 'r', encoding = "utf-8") as f:
+    with open('channels.csv', 'r', encoding = "utf-8") as f:
         if f.readline() == '':
             channel_writer.writerow(
                 ['link', 'id', 'name', 'subscribers', 'num_videos', 'description', 'isFamilySafe', 'keywords']
@@ -162,7 +162,7 @@ async def main(num_workers):
             if count > 0:
                 channels = channels[:-count]
             print(f'will reprocess last 100 channels leaving {len(channels)} channels left')
-    with open('videos.tsv', 'r', encoding = "utf-8") as f:
+    with open('videos.csv', 'r', encoding = "utf-8") as f:
         if f.readline() == '':
             video_writer.writerow(
                 ['channel_link', 'id', 'title', 'date', 'length', 'views', 'description_snippet']
@@ -175,7 +175,7 @@ async def main(num_workers):
         base_url = BASE, connector = conn, cookie_jar = DummyCookieJar()
     ) as session:
         # start the workers
-        print('starting workers now, run `wc -l channels.tsv` to monitor number of channels collected')
+        print('starting workers now, run `wc -l channels.csv` to monitor number of channels collected')
         await asyncio.gather(*[
             worker(channels, session) for _ in range(num_workers)
         ])

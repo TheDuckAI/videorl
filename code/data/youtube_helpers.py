@@ -93,50 +93,24 @@ def parse_response(response):
     return videos
 
 
-# basic csvwriter (re-writing since csvwriter can't handle append mode)
-class csv_writer:
-    def __init__(self, file, delimiter = '\t'):
-        self.file = file
-        self.delimiter = delimiter
-    
-    def writerow(self, row):
-        assert type(row) is list, "attempting to write non-list row"
-        for i in range(len(row)):
-            if row[i] is None:
-                row[i] = ''
-        self.file.write(self.delimiter.join(row) +  "\r\n")
-    
-    def writerows(self, rows):
-        for row in rows:
-            self.writerow(row)
-
-
-def tsv_clean(dirty_str):
-    if dirty_str is None:
-        return None
-    
-    # replace newlines and get rid of any whitespace that may mess up formatting
-    return dirty_str.strip().replace('\n', '<newline>').split()[0]
-
-
 denominations = {
         'K': 1000,
         'M': 1000000,
         'B': 1000000000
     }
 def text_to_num(text):
-    if text[-1] in denominations:
+    if text[-1].upper() in denominations:
         # separate out the K, M, or B
         num, magnitude = text[:-1], text[-1]
-        return str(int(float(num) * denominations[magnitude]))
+        return int(float(num) * denominations[magnitude])
     else:
-        return str(int(text))
+        return int(text)
 
 
 def parse_channel_info(response, channel_link):
     id = getValue(response, ["metadata", "channelMetadataRenderer", "externalId"])
     
-    title =  getValue(response, ["metadata", "channelMetadataRenderer", "title"])
+    title = getValue(response, ["metadata", "channelMetadataRenderer", "title"])
     
     subscribers = getValue(
         response,
@@ -149,15 +123,9 @@ def parse_channel_info(response, channel_link):
     if num_vids_shorts is not None:
         num_vids_shorts = text_to_num(num_vids_shorts.split(' ')[0].replace(',', '').replace('No', '0'))
     
-    description = tsv_clean(getValue(response, ["metadata", "channelMetadataRenderer", "description"]))
-    
+    description = getValue(response, ["metadata", "channelMetadataRenderer", "description"])
     isFamilySafe = getValue(response, ["metadata", "channelMetadataRenderer", "isFamilySafe"])
-    if isFamilySafe is not None:
-        isFamilySafe = str(isFamilySafe)
-    
     keywords = getValue(response, ["metadata", "channelMetadataRenderer", "keywords"])
-    if keywords is not None:
-        keywords = tsv_clean(keywords)
 
     return [channel_link, id, title, subscribers, num_vids_shorts, description, isFamilySafe, keywords]
 
@@ -204,21 +172,12 @@ def parse_videos(response, channel_link, is_continuation = False):
 
             id = video_data["videoId"]
             title = getValue(video_data, ['title', 'runs', 0, 'text'])
-
-            if title is not None:
-                title = tsv_clean(title)
-
             publish = dateparser.parse(video_data['publishedTimeText']['simpleText']).strftime("%Y-%m-%d")
-
             length = getValue(video_data, ['lengthText', 'simpleText'])
-
             views = getValue(video_data, ['viewCountText', 'simpleText'])
             if views is not None:
-                views = str(int(views.split(' ')[0].replace(',', '').replace('No', '0')))
-
+                views = int(views.split(' ')[0].replace(',', '').replace('No', '0'))
             description_snippet = getValue(video_data, ['descriptionSnippet', 'runs', 0, 'text'])
-            if description_snippet is not None:
-                description_snippet = tsv_clean(description_snippet)
 
             video_rows.append([channel_link, id, title, publish, length, views, description_snippet])
     return video_rows, token
