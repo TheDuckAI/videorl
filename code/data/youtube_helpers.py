@@ -114,7 +114,9 @@ class csv_writer:
 def tsv_clean(dirty_str):
     if dirty_str is None:
         return None
-    return dirty_str.strip().replace('\n', '<newline>').replace('\t', '').replace('\r', '')
+    
+    # replace newlines and get rid of any whitespace that may mess up formatting
+    return dirty_str.strip().replace('\n', '<newline>').split()[0]
 
 
 denominations = {
@@ -215,6 +217,8 @@ def parse_videos(response, channel_link, is_continuation = False):
                 views = str(int(views.split(' ')[0].replace(',', '').replace('No', '0')))
 
             description_snippet = getValue(video_data, ['descriptionSnippet', 'runs', 0, 'text'])
+            if description_snippet is not None:
+                description_snippet = tsv_clean(description_snippet)
 
             video_rows.append([channel_link, id, title, publish, length, views, description_snippet])
     return video_rows, token
