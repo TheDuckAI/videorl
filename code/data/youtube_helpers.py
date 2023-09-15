@@ -130,6 +130,7 @@ def parse_channel_info(response, channel_link):
     return [channel_link, id, title, subscribers, num_vids_shorts, description, isFamilySafe, keywords]
 
 
+# THIS CODE IS QUITE FRAGILE TO YOUTUBE CHANGING ITS UI, MAKE SURE THERE AREN'T TOO MANY NANs in OUTPUTS
 def parse_videos(response, channel_link, is_continuation = False):
     video_infos = None
     if is_continuation:
@@ -143,18 +144,22 @@ def parse_videos(response, channel_link, is_continuation = False):
     else:
         # initial get request, ensure there are videos to begin with
         tabs = getValue(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs'])
-        video_tab_index = None
-        for i, tab in enumerate(tabs):
+        video_tab = None
+        for tab in tabs:
             if 'tabRenderer' in tab and getValue(tab, ['tabRenderer', 'title']) == "Videos":
-                video_tab_index = i
+                video_tab = tab
         
         # no videos in channel
-        if video_tab_index is None:
+        if video_tab is None:
             return None, None
-
+                
         video_infos = getValue(
-            response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs', video_tab_index, 'tabRenderer', 'content', 'richGridRenderer', 'contents']
+            video_tab, ['tabRenderer', 'content', 'richGridRenderer', 'contents']
         )
+
+        # video tab doesn't contain videos
+        if video_infos is None:
+            return None, None
 
     assert video_infos is not None, "Unable to find videos in response"
 
