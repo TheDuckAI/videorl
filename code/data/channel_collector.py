@@ -98,7 +98,6 @@ async def collect_videos(
                 video_writer.writerows(video_rows)
 
 
-
 async def worker(channels_left, session):
     # async with print_lock:
     #     print('worker started')
@@ -130,8 +129,7 @@ async def worker(channels_left, session):
                 error_file.flush()
         
         # async with print_lock:
-        #     print('collected all video from the channel', channel_link, end = "\t\t\t\r")
-        
+        #     print('collected all video from the channel', channel_link, end = "\t\t\t\r") 
 
 
 async def main(num_workers):
