@@ -1,0 +1,9 @@
+# Weights for the quality score calculation
+w1: 0.7
+w2: 0.3
+
+# Metric choice for video movement
+metric: SSIM
+
+# Proportion of data to include in the test split
+split_test_size: 0.2
