@@ -1,56 +1,40 @@
 import csv
 import yaml
+import os
+import json
 from sklearn.model_selection import train_test_split
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import mean_squared_error as mse
-
-# Mocking the v2d data fetch and image download for the sake of demonstration
-from mock_utils import fetch_v2d_data, download_images
+from video2dataset import video2dataset
 
 def compute_similarity(img1, img2, metric):
     """
     Compute the similarity between two images based on the specified metric.
-    
-    Args:
-    - img1, img2: Images to be compared.
-    - metric (str): Metric to be used (e.g., "SSIM", "MSE").
-    
-    Returns:
-    - float: Similarity score.
     """
     if metric == "SSIM":
         return ssim(img1, img2, multichannel=True)
     elif metric == "MSE":
         return mse(img1, img2)
-    # Add other metrics as needed
     else:
         raise ValueError(f"Unsupported metric: {metric}")
 
-def compute_quality_score(video_id, config):
+def compute_quality_score(video_file_path, config):
     """
-    Compute the quality score for a given video based on its ID and provided configuration.
-    
-    Args:
-    - video_id (str): ID of the video.
-    - config (dict): Configuration parameters including weights and metric choice.
-    
-    Returns:
-    - float: Computed quality score.
+    Compute the quality score for a given video file based on the provided configuration.
     """
-    # Mock download of images
-    images = download_images(video_id)
-
+    # For demonstration purposes, assuming the video_file_path can directly be used
+    # to extract relevant frames. In a real-world scenario, a video processing library would be used.
+    
     # Compute pairwise differences
     diffs = []
     for i in range(3):
         for j in range(i+1, 4):
-            diffs.append(compute_similarity(images[i], images[j], config["metric"]))
+            diffs.append(compute_similarity(video_file_path, video_file_path, config["metric"])) # Placeholder
 
     movement_score = sum(diffs) / len(diffs)
 
-    # Mock fetching v2d data
-    v2d_data = fetch_v2d_data(video_id)
-    resolution = int(v2d_data["yt_meta_dict"]["info"]["resolution"].split('x')[1])
+    # For now, using a placeholder for resolution. In a real-world scenario, the resolution would be fetched.
+    resolution = 1080
 
     # Compute quality score
     quality_score = config["w1"] * movement_score + config["w2"] * resolution
@@ -60,29 +44,17 @@ def compute_quality_score(video_id, config):
 def split_data(input_csv_path, train_csv_path, test_csv_path, test_size=0.2):
     """
     Split the provided data into train and test datasets.
-    
-    Args:
-    - input_csv_path (str): Path to the input CSV file.
-    - train_csv_path (str): Path to save the train split.
-    - test_csv_path (str): Path to save the test split.
-    - test_size (float): Proportion of data to include in the test split.
     """
-    
-    # Read the data from the input CSV
     with open(input_csv_path, mode='r') as infile:
         reader = list(csv.DictReader(infile))
-        
-        # Split the data
         train_data, test_data = train_test_split(reader, test_size=test_size, random_state=42)
-        
-        # Write the train split to the train CSV
+
         with open(train_csv_path, mode='w', newline='') as trainfile:
             writer = csv.DictWriter(trainfile, fieldnames=reader[0].keys())
             writer.writeheader()
             for row in train_data:
                 writer.writerow(row)
-                
-        # Write the test split to the test CSV
+
         with open(test_csv_path, mode='w', newline='') as testfile:
             writer = csv.DictWriter(testfile, fieldnames=reader[0].keys())
             writer.writeheader()
@@ -91,15 +63,16 @@ def split_data(input_csv_path, train_csv_path, test_csv_path, test_size=0.2):
 
 def main(input_csv_path, output_csv_path, config_path):
     """
-    Main function to compute quality scores for all videos in the input CSV and save to the output CSV.
-    
-    Args:
-    - input_csv_path (str): Path to the input CSV file containing video data.
-    - output_csv_path (str): Path to the output CSV file to save results.
-    - config_path (str): Path to the config.yaml file.
+    Main function to compute quality scores for all videos and save to the output CSV.
     """
     with open(config_path, 'r') as ymlfile:
         config = yaml.load(ymlfile, Loader=yaml.FullLoader)
+
+    # Use video2dataset to download videos and save them to a designated folder
+    video2dataset(url_list=input_csv_path,
+                  output_folder="dataset",
+                  url_col=config["url_col"],
+                  caption_col=config["caption_col"])
 
     with open(input_csv_path, mode='r') as infile, open(output_csv_path, mode='w', newline='') as outfile:
         reader = csv.DictReader(infile)
@@ -109,26 +82,18 @@ def main(input_csv_path, output_csv_path, config_path):
         
         for row in reader:
             video_id = row["id"]
-            quality_score = compute_quality_score(video_id, config)
+            
+            # Assuming video files are saved with format {video_id}.mp4 and metadata in {video_id}.json
+            video_file_path = os.path.join("dataset", f"{video_id}.mp4")
+            metadata_file_path = os.path.join("dataset", f"{video_id}.json")
+            
+            with open(metadata_file_path, 'r') as json_file:
+                metadata = json.load(json_file)
+            
+            # Use metadata if necessary for further processing
+            
+            quality_score = compute_quality_score(video_file_path, config)
             row["quality_score"] = quality_score
             writer.writerow(row)
 
-if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description='Process and compute quality scores for videos.')
-    
-    parser.add_argument('input_csv', help='Path to the input CSV file containing video data.')
-    parser.add_argument('train_csv', help='Path to save the train split of the data.')
-    parser.add_argument('test_csv', help='Path to save the test split of the data.')
-    parser.add_argument('config', help='Path to the config.yaml file.')
-    
-    args = parser.parse_args()
-    
-    # Read test size from config
-    with open(args.config, 'r') as ymlfile:
-        config = yaml.load(ymlfile, Loader=yaml.FullLoader)
-    
-    test_size = config.get("split_test_size", 0.2)  # Default test size is 0.2 if not specified in config
-    
-    # Split the data into train and test splits
-    split_data(args.input_csv, args.train_csv, args.test_csv, test_size)
+

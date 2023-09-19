@@ -1,9 +1,13 @@
-# Weights for the quality score calculation
-w1: 0.7
-w2: 0.3
+# Hyperparameters for Quality Score
+w1: 0.6
+w2: 0.4
 
-# Metric choice for video movement
+# Choice of metric for video movement (can be SSIM or MSE)
 metric: SSIM
 
-# Proportion of data to include in the test split
-split_test_size: 0.2
+# video2dataset configuration
+url_col: url
+caption_col: caption
+
+# Data Split
+test_size: 0.2

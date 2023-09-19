@@ -26,7 +26,7 @@ def extract_first_r_entries(input_csv, output_csv, r):
 
 if __name__ == "__main__":
     r = 100
-    input_csv="../../sample/videos.csv"
+    input_csv="sample/videos.csv"
     output_csv = "cache/sample.csv"
     
     extract_first_r_entries(input_csv, output_csv, r)
