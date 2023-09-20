@@ -1,3 +1,6 @@
+"""
+Generate a sample CSV file of size r from the original CSV file.
+"""
 import csv
 import argparse
 

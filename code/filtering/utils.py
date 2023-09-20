@@ -2,9 +2,11 @@ import csv
 import yaml
 import os
 import json
+
 from sklearn.model_selection import train_test_split
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import mean_squared_error as mse
+
 from video2dataset import video2dataset
 
 def compute_similarity(img1, img2, metric):
@@ -97,3 +99,5 @@ def main(input_csv_path, output_csv_path, config_path):
             writer.writerow(row)
 
 
+if __name__ == "__main__":
+    split_data("cache/sample.csv", "cache/train.csv", "cache/test.csv")
