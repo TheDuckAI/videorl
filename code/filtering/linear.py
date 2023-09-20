@@ -94,9 +94,9 @@ def train_model(input_csv_path, model_path, config_path):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description='Train a Linear Regression model for video quality prediction.')
-    parser.add_argument('input_csv', help='Path to the input CSV file containing video data.')
-    parser.add_argument('model_path', help='Path to save the trained model.')
-    parser.add_argument('config', help='Path to the config.yaml file.')
+    parser.add_argument('--input_csv', help='Path to the input CSV file containing video data.')
+    parser.add_argument('--model_path', help='Path to save the trained model.')
+    parser.add_argument('--config', help='Path to the config.yaml file.')
     args = parser.parse_args()
     
     train_model(args.input_csv, args.model_path, args.config)
