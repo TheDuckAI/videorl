@@ -7,6 +7,7 @@ import yaml
 import os
 import json
 
+from skimage.transform import resize
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import mean_squared_error as mse
 
@@ -19,6 +20,11 @@ def compute_similarity(img_url1, img_url2, metric):
     # Download the images from the URLs
     img1 = imageio.imread(BytesIO(requests.get(img_url1).content))
     img2 = imageio.imread(BytesIO(requests.get(img_url2).content))
+    
+    # Resize the images to the smallest shape between the two
+    target_shape = tuple(min(s1, s2) for s1, s2 in zip(img1.shape, img2.shape))
+    img1 = resize(img1, target_shape)
+    img2 = resize(img2, target_shape)
 
     if metric == "SSIM":
         return ssim(img1, img2, multichannel=True)
