@@ -11,7 +11,7 @@ import joblib
 # Initialize wandb
 wandb.init(project="video_quality_prediction")
 
-def load_data(input_csv_path):
+def load_data(input_csv_path, config_path):
     """
     Load data from the provided CSV file and compute quality scores if needed.
     
@@ -32,7 +32,7 @@ def load_data(input_csv_path):
         # Compute quality scores and add them to the data
         for row in data:
             video_id = row["id"]
-            quality_score = compute_quality_score(video_id)  # This function is from utils.py
+            quality_score = compute_quality_score(video_id, config_path)  # This function is from utils.py
             row["quality_score"] = quality_score
 
         # Write the updated data back to the CSV file
@@ -70,7 +70,7 @@ def train_model(input_csv_path, model_path, config_path):
     with open(config_path, 'r') as ymlfile:
         config = yaml.load(ymlfile, Loader=yaml.FullLoader)
         
-    X, y = load_data(input_csv_path)
+    X, y = load_data(input_csv_path, config_path)
     
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=config["split_test_size"], random_state=42)
     
