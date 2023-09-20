@@ -1,3 +1,7 @@
+import imageio
+import requests
+from io import BytesIO
+
 import csv
 import yaml
 import os
@@ -8,10 +12,14 @@ from skimage.metrics import mean_squared_error as mse
 
 from video2dataset import video2dataset
 
-def compute_similarity(img1, img2, metric):
+def compute_similarity(img_url1, img_url2, metric):
     """
     Compute the similarity between two images based on the specified metric.
     """
+    # Download the images from the URLs
+    img1 = imageio.imread(BytesIO(requests.get(img_url1).content))
+    img2 = imageio.imread(BytesIO(requests.get(img_url2).content))
+
     if metric == "SSIM":
         return ssim(img1, img2, multichannel=True)
     elif metric == "MSE":
@@ -19,18 +27,19 @@ def compute_similarity(img1, img2, metric):
     else:
         raise ValueError(f"Unsupported metric: {metric}")
 
-def compute_quality_score(video_file_path, config):
+def compute_quality_score(video_id, config):
     """
-    Compute the quality score for a given video file based on the provided configuration.
+    Compute the quality score for a given video ID based on the provided configuration.
     """
-    # For demonstration purposes, assuming the video_file_path can directly be used
-    # to extract relevant frames. In a real-world scenario, a video processing library would be used.
+    base_url = "https://img.youtube.com/vi/"
+    # URLs for the four generated images from YouTube
+    img_urls = [f"{base_url}{video_id}/{i}.jpg" for i in range(4)]
     
     # Compute pairwise differences
     diffs = []
     for i in range(3):
         for j in range(i+1, 4):
-            diffs.append(compute_similarity(video_file_path, video_file_path, config["metric"])) # Placeholder
+            diffs.append(compute_similarity(img_urls[i], img_urls[j], config["metric"]))
 
     movement_score = sum(diffs) / len(diffs)
 
