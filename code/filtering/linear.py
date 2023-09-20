@@ -57,7 +57,7 @@ def load_data(input_csv_path, config):
     return np.array(features), np.array(quality_scores)
 
 
-def train_model(input_csv_path, model_path, config):
+def train_model(input_csv_path, model_path, config_path):
     """
     Train a Linear Regression model on the provided data.
     
