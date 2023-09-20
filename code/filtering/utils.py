@@ -3,7 +3,6 @@ import yaml
 import os
 import json
 
-from sklearn.model_selection import train_test_split
 from skimage.metrics import structural_similarity as ssim
 from skimage.metrics import mean_squared_error as mse
 
@@ -43,25 +42,6 @@ def compute_quality_score(video_file_path, config):
 
     return quality_score
 
-def split_data(input_csv_path, train_csv_path, test_csv_path, test_size=0.2):
-    """
-    Split the provided data into train and test datasets.
-    """
-    with open(input_csv_path, mode='r') as infile:
-        reader = list(csv.DictReader(infile))
-        train_data, test_data = train_test_split(reader, test_size=test_size, random_state=42)
-
-        with open(train_csv_path, mode='w', newline='') as trainfile:
-            writer = csv.DictWriter(trainfile, fieldnames=reader[0].keys())
-            writer.writeheader()
-            for row in train_data:
-                writer.writerow(row)
-
-        with open(test_csv_path, mode='w', newline='') as testfile:
-            writer = csv.DictWriter(testfile, fieldnames=reader[0].keys())
-            writer.writeheader()
-            for row in test_data:
-                writer.writerow(row)
 
 def main(input_csv_path, output_csv_path, config_path):
     """
@@ -98,6 +78,3 @@ def main(input_csv_path, output_csv_path, config_path):
             row["quality_score"] = quality_score
             writer.writerow(row)
 
-
-if __name__ == "__main__":
-    split_data("cache/sample.csv", "cache/train.csv", "cache/test.csv")
