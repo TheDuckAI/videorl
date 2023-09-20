@@ -13,7 +13,7 @@ wandb.init(project="video_quality_prediction")
 
 def load_data(input_csv_path):
     """
-    Load data from the provided CSV file and compute quality scores.
+    Load data from the provided CSV file and compute quality scores if needed.
     
     Args:
     - input_csv_path (str): Path to the input CSV file containing video data.
@@ -22,24 +22,40 @@ def load_data(input_csv_path):
     - X (np.array): Features for each video.
     - y (np.array): Quality scores for each video.
     """
+    data = []
     with open(input_csv_path, mode='r') as infile:
         reader = csv.DictReader(infile)
-        
-        features = []
-        quality_scores = []
-        
-        for row in reader:
+        data = [row for row in reader]
+
+    # Check if "quality_score" column exists
+    if "quality_score" not in data[0]:
+        # Compute quality scores and add them to the data
+        for row in data:
             video_id = row["id"]
-            quality_score = float(row["quality_score"])
-            
-            # Here, you can add more features as needed
-            feature_vector = [
-                float(row["length"].split(":")[0]),  # Taking video length in minutes as a feature
-            ]
-            features.append(feature_vector)
-            quality_scores.append(quality_score)
+            quality_score = compute_quality_score(video_id)  # This function is from utils.py
+            row["quality_score"] = quality_score
+
+        # Write the updated data back to the CSV file
+        with open(input_csv_path, mode='w', newline='') as outfile:
+            writer = csv.DictWriter(outfile, fieldnames=data[0].keys())
+            writer.writeheader()
+            for row in data:
+                writer.writerow(row)
+
+    # Extract features and quality scores for training
+    features = []
+    quality_scores = []
+    for row in data:
+        video_id = row["id"]
+        quality_score = float(row["quality_score"])
+        feature_vector = [
+            float(row["length"].split(":")[0]),  # Taking video length in minutes as a feature
+        ]
+        features.append(feature_vector)
+        quality_scores.append(quality_score)
 
     return np.array(features), np.array(quality_scores)
+
 
 def train_model(input_csv_path, model_path, config_path):
     """
