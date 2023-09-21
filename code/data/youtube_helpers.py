@@ -9,7 +9,7 @@ PAYLOAD = {
     "context": {
         "client": {
             "clientName": "WEB",
-            "clientVersion": "2.20230831.09.00",
+            "clientVersion": "2.20230921.01.00",
             "newVisitorCookie": True,
         },
         "user": {
