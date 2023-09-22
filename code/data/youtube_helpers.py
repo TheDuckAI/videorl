@@ -1,4 +1,5 @@
-import dateparser
+import datetime
+from dateutil.relativedelta import relativedelta
 
 # constants used for requests
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/117.0"
@@ -16,6 +17,14 @@ PAYLOAD = {
             "lockedSafetyMode": False,
         }
     }
+}
+tab_params = {
+    'Videos'    :   'EgZ2aWRlb3PyBgQKAjoA',
+    'Shorts'    :   'EgZzaG9ydHPyBgUKA5oBAA%3D%3D',
+    'Live'      :   'EgdzdHJlYW1z8gYECgJ6AA%3D%3D',
+    'Playlists' :   'EglwbGF5bGlzdHPyBgQKAkIA',
+    'Channels'  :   'EghjaGFubmVsc_IGBAoCUgA%3D',
+    'About'     :   'EgVhYm91dPIGBAoCEgA%3D'
 }
 
 
@@ -107,14 +116,12 @@ def text_to_num(text, demoninations = denominations):
         return int(text)
     
 
-tab_params = {
-    'Videos'    :   'EgZ2aWRlb3PyBgQKAjoA',
-    'Shorts'    :   'EgZzaG9ydHPyBgUKA5oBAA%3D%3D',
-    'Live'      :   'EgdzdHJlYW1z8gYECgJ6AA%3D%3D',
-    'Playlists' :   'EglwbGF5bGlzdHPyBgQKAkIA',
-    'Channels'  :   'EghjaGFubmVsc_IGBAoCUgA%3D',
-    'About'     :   'EgVhYm91dPIGBAoCEgA%3D'
-}
+def parse_date(date):
+    val, unit = date.split()[:2]
+    if not unit.endswith('s'):
+        unit = unit + 's'
+    past_time = datetime.datetime.now() - relativedelta(**{unit:int(val)})
+    return past_time.strftime("%Y-%m-%d")
 
 
 def get_tab(response, name):
@@ -164,7 +171,7 @@ def parse_channel_info(response, channel_link):
 
     join_date = getValue(full_meta, ['joinedDateText', 'runs', 1, 'text'])
     if join_date is not None:
-        join_date = dateparser.parse(join_date).strftime("%Y-%m-%d")
+        join_date = parse_date(join_date)
 
     country = getValue(full_meta, ['country', 'simpleText'])
 
@@ -207,18 +214,12 @@ def parse_videos(response, channel_link, is_continuation = False):
             return None, None
     else:
         # initial get request, ensure there are videos to begin with
-        tabs = getValue(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs'])
-        video_tab = None
-        for tab in tabs:
-            if 'tabRenderer' in tab and getValue(tab, ['tabRenderer', 'title']) == "Videos":
-                video_tab = tab
-        
-        # no videos in channel
-        if video_tab is None:
-            return None, None
+
+        # NOTE: USING THE PREPARSED TAB FOR THIS CODE
+        tab = response
                 
         video_infos = getValue(
-            video_tab, ['tabRenderer', 'content', 'richGridRenderer', 'contents']
+            tab, ['richGridRenderer', 'contents']
         )
 
         # video tab doesn't contain videos
@@ -241,12 +242,18 @@ def parse_videos(response, channel_link, is_continuation = False):
 
             id = video_data["videoId"]
             title = getValue(video_data, ['title', 'runs', 0, 'text'])
-            publish = dateparser.parse(video_data['publishedTimeText']['simpleText']).strftime("%Y-%m-%d")
+            publish = parse_date(video_data['publishedTimeText']['simpleText'].replace('Streamed ', ''))
             length = getValue(video_data, ['lengthText', 'simpleText'])
             views = getValue(video_data, ['viewCountText', 'simpleText'])
             if views is not None:
                 views = int(views.split(' ')[0].replace(',', '').replace('No', '0'))
             description_snippet = getValue(video_data, ['descriptionSnippet', 'runs', 0, 'text'])
 
-            video_rows.append([channel_link, id, title, publish, length, views, description_snippet])
+            thumbnails = getValue(video_data, ['thumbnail', 'thumbnails'])
+            moving_thumbnails = getValue(video_data, ['richThumbnail', 'movingThumbnailRenderer', 'movingThumbnailDetails', 'thumbnails'])
+
+
+            video_rows.append([channel_link, id, title, publish, length, views, description_snippet, moving_thumbnails, thumbnails])
     return video_rows, token
+
+# video stage: description, transcript, thumbnails
