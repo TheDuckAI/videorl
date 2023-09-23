@@ -1,5 +1,7 @@
-import datetime
+from datetime import datetime
 from dateutil.relativedelta import relativedelta
+
+
 
 # constants used for requests
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/117.0"
@@ -18,14 +20,7 @@ PAYLOAD = {
         }
     }
 }
-tab_params = {
-    'Videos'    :   'EgZ2aWRlb3PyBgQKAjoA',
-    'Shorts'    :   'EgZzaG9ydHPyBgUKA5oBAA%3D%3D',
-    'Live'      :   'EgdzdHJlYW1z8gYECgJ6AA%3D%3D',
-    'Playlists' :   'EglwbGF5bGlzdHPyBgQKAkIA',
-    'Channels'  :   'EghjaGFubmVsc_IGBAoCUgA%3D',
-    'About'     :   'EgVhYm91dPIGBAoCEgA%3D'
-}
+
 
 
 def getValue(source, path):
@@ -120,7 +115,7 @@ def parse_date(date):
     val, unit = date.split()[:2]
     if not unit.endswith('s'):
         unit = unit + 's'
-    past_time = datetime.datetime.now() - relativedelta(**{unit:int(val)})
+    past_time = datetime.now() - relativedelta(**{unit:int(val)})
     return past_time.strftime("%Y-%m-%d")
 
 
@@ -131,7 +126,20 @@ def get_tab(response, name):
             return getValue(tab, ['tabRenderer', 'content'])
 
 
-def parse_channel_info(response, channel_link):
+def get_continuation(response):
+    continuation = getValue(
+            response, ['onResponseReceivedActions', 0, 'appendContinuationItemsAction', 'continuationItems']
+        )
+
+    # continuation returned empty (i.e. no more videos to collect)
+    if 'responseContext' in response and continuation is None:
+        return None
+    
+    return continuation
+
+
+################################### TAB PARSERS ####################################
+def parse_about(channel_link, response = None, tab = None, **kwargs):
     id = getValue(response, ["metadata", "channelMetadataRenderer", "externalId"])
 
     title = getValue(response, ["metadata", "channelMetadataRenderer", "title"])
@@ -159,19 +167,20 @@ def parse_channel_info(response, channel_link):
                     monetization = (feedback.get('value') == 'true')
 
     verified = False
-    for badge in getValue(response, ['header', 'c4TabbedHeaderRenderer', 'badges']):
-        if getValue(badge, ['metadataBadgeRenderer', 'tooltip']) == 'Verified':
-            verified = True
+    badges = getValue(response, ['header', 'c4TabbedHeaderRenderer', 'badges'])
+    if badges is not None:
+        for badge in badges:
+            if getValue(badge, ['metadataBadgeRenderer', 'tooltip']) == 'Verified':
+                verified = True
 
-    about = get_tab(response, 'About')
-    full_meta = getValue(about, ['sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'channelAboutFullMetadataRenderer'])
+    full_meta = getValue(tab, ['sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'channelAboutFullMetadataRenderer'])
     view_count = getValue(full_meta, ['viewCountText', 'simpleText'])
     if view_count is not None:
         view_count = text_to_num(view_count.split(' ')[0].replace(',', ''))
 
     join_date = getValue(full_meta, ['joinedDateText', 'runs', 1, 'text'])
     if join_date is not None:
-        join_date = parse_date(join_date)
+        join_date = datetime.strptime(join_date, '%b %d, %Y').strftime("%Y-%m-%d")
 
     country = getValue(full_meta, ['country', 'simpleText'])
 
@@ -195,29 +204,16 @@ def parse_channel_info(response, channel_link):
             parsed_links.append({'title': link_title, 'link': link_url})
     parsed_links
 
+    # use 2d array to match the format of other parsers)
+    return [[channel_link, id, title, subscribers, view_count, num_vids_shorts, join_date, country, monetization, verified,
+            isFamilySafe, description, tags, fullsize_avatar, fullsize_banner, parsed_links]], None
 
-    return [channel_link, id, title, subscribers, view_count, num_vids_shorts, join_date, country, monetization, verified,
-            isFamilySafe, description, tags, fullsize_avatar, fullsize_banner, parsed_links]
 
 
-
-# THIS CODE IS QUITE FRAGILE TO YOUTUBE CHANGING ITS UI, MAKE SURE THERE AREN'T TOO MANY NANs in OUTPUTS
-def parse_videos(response, channel_link, is_continuation = False):
+def parse_videos(channel_link, tab = None, continuation = None, **kwargs):
     video_infos = None
-    if is_continuation:
-        video_infos = getValue(
-            response, ['onResponseReceivedActions', 0, 'appendContinuationItemsAction', 'continuationItems']
-        )
-
-        # continuation returned empty (i.e. no more videos to collect)
-        if 'responseContext' in response and video_infos is None:
-            return None, None
-    else:
+    if continuation is None:
         # initial get request, ensure there are videos to begin with
-
-        # NOTE: USING THE PREPARSED TAB FOR THIS CODE
-        tab = response
-                
         video_infos = getValue(
             tab, ['richGridRenderer', 'contents']
         )
@@ -225,15 +221,15 @@ def parse_videos(response, channel_link, is_continuation = False):
         # video tab doesn't contain videos
         if video_infos is None:
             return None, None
+    else:
+        video_infos = continuation
 
     assert video_infos is not None, "Unable to find videos in response"
 
     video_rows = []
     token = None
     for info in video_infos:
-        if 'continuationItemRenderer' in info:
-            token = getValue(info, ['continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'])
-        else:
+        if "richItemRenderer" in info:
             video_data = getValue(info, ['richItemRenderer', 'content', 'videoRenderer'])
 
             if 'publishedTimeText' not in video_data:
@@ -254,6 +250,150 @@ def parse_videos(response, channel_link, is_continuation = False):
 
 
             video_rows.append([channel_link, id, title, publish, length, views, description_snippet, moving_thumbnails, thumbnails])
+        if 'continuationItemRenderer' in info:
+            token = getValue(info, ['continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'])
     return video_rows, token
 
-# video stage: description, transcript, thumbnails
+
+def parse_shorts(channel_link, tab = None, continuation = None, **kwargs):
+    if continuation is None:
+        # initial request, ensure there are shorts to begin with
+        shorts_info = getValue(
+            tab, ['richGridRenderer', 'contents']
+        )
+
+        # shorts tab empty
+        if shorts_info is None:
+            return None, None
+    else:
+        shorts_info = continuation
+
+    assert shorts_info is not None, "Unable to find shorts in response"
+    
+    shorts = []
+    token = None
+    for renderer in shorts_info:
+        if "richItemRenderer" in renderer:
+            short_content = getValue(renderer, ["richItemRenderer", "content", "reelItemRenderer"])
+            id = getValue(short_content, ["videoId"])
+            headline = getValue(short_content, ["headline", "simpleText"])
+
+            thumbnail = getValue(short_content, ["thumbnail", "thumbnails", 0])
+            width = None
+            height = None
+            if thumbnail is not None and 'url' in thumbnail:
+                width = getValue(thumbnail, ["width"])
+                height = getValue(thumbnail, ["height"])
+                thumbnail = getValue(thumbnail, ["url"])
+
+            viewCountText = getValue(short_content, ["viewCountText", "simpleText"])
+            if viewCountText is not None:
+                viewCountText = text_to_num(viewCountText.split(' ')[0].replace(',', '').replace('No', '0'))
+            
+            length = getValue(short_content, ["accessibility", "accessibilityData", "label"])
+            if length is not None:
+                length = length.split(' - ')[1]
+            
+            shorts.append([channel_link, id, headline, viewCountText, length, thumbnail, width, height])
+        if 'continuationItemRenderer' in renderer:
+            token = getValue(renderer, ['continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'])
+    return shorts, token
+
+
+def parse_live(channel_link, tab = None, continuation = None, **kwargs):
+    return parse_videos(channel_link, tab = tab, continuation = continuation)
+
+
+def parse_playlists(channel_link, tab = None, continuation = None, **kwargs):
+    if continuation is None:
+        # initial request, ensure there are playlists to begin with
+        playlist_infos = getValue(tab,
+            ['sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'gridRenderer', 'items']
+        )
+
+        # playlist tab empty
+        if playlist_infos is None:
+            return None, None
+    else:
+        playlist_infos = continuation
+
+    assert playlist_infos is not None, "Unable to find playlists in response"
+
+    playlists = []
+    token = None
+    for info in playlist_infos:
+        if 'gridPlaylistRenderer' in info:
+            info = info['gridPlaylistRenderer']
+            id = getValue(info, ['playlistId'])
+            title = getValue(info, ['title', 'runs', 0, 'text'])
+            num_videos = getValue(info, ['videoCountShortText', 'simpleText'])
+
+            playlists.append([channel_link, id, title, num_videos])
+        if 'continuationItemRenderer' in info:
+            token = getValue(info, ['continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'])
+
+    return playlists, token
+
+
+def parse_featured_channels(channel_link, tab = None, continuation = None, **kwargs):
+    if continuation is None:
+        # initial request, ensure there are featured channels to begin with
+        channel_infos = getValue(tab,
+            ['sectionListRenderer', 'contents', 0, 'itemSectionRenderer', 'contents', 0, 'gridRenderer', 'items']
+        )
+
+        # featured channels tab empty
+        if channel_infos is None:
+            return None, None
+    else:
+        channel_infos = continuation
+
+    assert channel_infos is not None, "Unable to find featured channels in response"
+
+    channels = []
+    token = None
+    for info in channel_infos:
+        if 'gridChannelRenderer' in info:
+            id = getValue(info, ['channelId'])
+            url = getValue(info, ['navigationEndpoint', 'commandMetadata', 'webCommandMetadata', 'url'])
+            name = getValue(info, ['title', 'simpleText'])
+            subscribers = getValue(info, ['subscriberCountText', 'simpleText'])
+            num_shorts_vids = getValue(info, ['videoCountText', 'runs', 0, 'text'])
+
+            channels.append([channel_link, id, url, name, subscribers, num_shorts_vids])
+        if 'continuationItemRenderer' in info:
+            token = getValue(info, ['continuationItemRenderer', 'continuationEndpoint', 'continuationCommand', 'token'])
+    return channels, token
+
+
+
+# organize the parsers
+tab_helpers = [
+    {
+        'name': 'About', 'param': 'EgVhYm91dPIGBAoCEgA%3D', 'parse_func': parse_about,
+        'features': [
+            'link', 'id', 'title', 'subscribers', 'view_count', 'num_vids_shorts', 'join_date', 'country', 'monetization', 'verified',
+            'isFamilySafe', 'description', 'tags', 'fullsize_avatar', 'fullsize_banner', 'parsed_links'
+        ]
+    },
+    {
+        'name': 'Videos', 'param': 'EgZ2aWRlb3PyBgQKAjoA', 'parse_func': parse_videos,
+        'features': ['link', 'id', 'title', 'approx_date', 'length', 'views', 'description_snippet', 'moving_thumbnails', 'thumbnails']
+    },
+    {
+        'name': 'Shorts', 'param': 'EgZzaG9ydHPyBgUKA5oBAA%3D%3D', 'parse_func': parse_shorts,
+        'features': ['link', 'id', 'headline', 'viewCountText', 'length', 'thumbnail', 'width', 'height']
+    },
+    {
+        'name': 'Live', 'param': 'EgdzdHJlYW1z8gYECgJ6AA%3D%3D', 'parse_func': parse_live,
+        'features': ['link', 'id', 'title', 'approx_date', 'length', 'views', 'description_snippet', 'moving_thumbnails', 'thumbnails']
+    },
+    {
+        'name': 'Playlists', 'param': 'EglwbGF5bGlzdHPyBgQKAkIA', 'parse_func': parse_playlists,
+        'features': ['link', 'id', 'title', 'num_videos']
+    },
+    {
+        'name': 'Channels', 'param': 'EghjaGFubmVsc_IGBAoCUgA%3D', 'parse_func': parse_featured_channels,
+        'features': ['link', 'id', 'url', 'name', 'subscribers', 'num_shorts_vids']
+    },
+]

@@ -15,92 +15,123 @@ from youtube_helpers import (
     BROWSE_ENDPOINT,
     PAYLOAD,
     USER_AGENT,
-    parse_channel_info,
-    parse_videos,
+    get_tab,
+    get_continuation,
+    tab_helpers,
 )
 
 
 
-######################### GLOBAL VARIABLES #################################
-write_lock = asyncio.Lock()
-print_lock = asyncio.Lock()
+####################### GLOBAL VARIABLES ############################
 channel_lock = asyncio.Lock()
 error_lock = asyncio.Lock()
-
-channel_file = open('channels.csv', 'a', encoding = "utf-8")
-channel_writer = csv.writer(channel_file)
-
-video_file = open('videos.csv', 'a', encoding = "utf-8")
-video_writer = csv.writer(video_file)
-
 error_file = open('collection_errors.txt', 'a', encoding = "utf-8")
+#####################################################################
 
+
+
+class Extractor():
+    def __init__(self, name, param, parse_func, features):
+        self.name = name
+        self.browse_param = param
+        self.parse_func = parse_func
+        self.features = features
+
+        self.file = open(f'{name}.csv', 'a', encoding = "utf-8")
+        self.writer = csv.writer(self.file)
+        self.lock = asyncio.Lock()
+
+        # write header if it doesn't exist
+        if os.path.getsize(f'{name}.csv') == 0:
+            self.writer.writerow(features)
+
+
+    async def extract(self, session, channel_id, channel_link):
+        # initial request to get load a "selected tab" (e.g. videos, playlists, etc.)
+        payload = copy.deepcopy(PAYLOAD)
+        payload['browseId'] = channel_id
+        payload['params'] = self.browse_param
+        async with session.post(
+            BROWSE_ENDPOINT, headers = {'User-Agent': USER_AGENT},
+            json = payload, timeout = 10
+        ) as response:
+            if response.ok is False:
+                async with error_lock:
+                    print('bad response: ', response.status, response.reason)
+                raise BadResponseException()
+            
+            data = await response.json()
+            tab = get_tab(data, self.name)
+
+            # tab may not exist (e.g. if channel has no playlists)
+            if tab is None:
+                return
+            
+            rows, token = self.parse_func(channel_link, tab = tab, response = data)
+            
+            if rows is not None:
+                async with self.lock:
+                    self.writer.writerows(rows)
+
+        # continue through continuation if it exists
+        while token is not None:
+            payload = copy.deepcopy(PAYLOAD)
+            payload['continuation'] = token
+            async with session.post(
+                BROWSE_ENDPOINT, headers = {'User-Agent': USER_AGENT},
+                json = payload, timeout = 10
+            ) as response:
+                if response.ok is False:
+                    async with error_lock:
+                        print('bad response: ', response.status, response.reason)
+                    raise BadResponseException()
+                
+                data = await response.json()
+                continuation = get_continuation(data)
+
+                if continuation is None:
+                    return
+
+                rows, token = self.parse_func(channel_link, continuation = continuation)
+
+                if rows is not None:
+                    async with self.lock:
+                        self.writer.writerows(rows)
+
+
+
+class BadResponseException(Exception):
+    pass
 
 
 ########################## FUNCTION DECLARATIONS ###########################
-async def collect_videos(
-    channel_link, session, channel_writer = channel_writer, video_writer = video_writer
-):
+async def get_channel(channel_link, session, error_lock = error_lock):
     async with session.get(
-        channel_link + '/videos', headers = {'User-Agent': USER_AGENT}, timeout = 10
+        channel_link, headers = {'User-Agent': USER_AGENT}, timeout = 10
     ) as response:
         # ignore 404 and just continue
         if response.status == 404:
-            return
-        
+            return None
+
         if response.ok is False:
-            print('bad response: ', response.status, response.reason)
-            return response.ok
-    
-        # find the channel data within the html
+            async with error_lock:
+                print('bad response: ', response.status, response.reason)
+            raise BadResponseException()
+        
         html = await response.text()
         soup = bs4(html, 'html.parser')
         data_str = 'var ytInitialData = '
         channel_data = json.loads(
             soup(text = re.compile(data_str))[0].strip(data_str).strip(';')
         )
-        channel_info = parse_channel_info(channel_data, channel_link)
+        channel_id = channel_data['metadata']['channelMetadataRenderer']['externalId']
+        return channel_id
         
-        # ignore title-less or "Topic" channels
-        if channel_info[1] is None or channel_info[1].endswith(" - Topic"):
-            return
         
-        video_rows, token = parse_videos(channel_data, channel_link)
-
-        # some channels may not have videos
-        if video_rows is None:
-            return
-
-        async with write_lock:
-            channel_writer.writerow(channel_info)        
-            video_writer.writerows(video_rows)
-
-    # continue "scrolling" through channel's videos
-    while token is not None:
-        data = copy.deepcopy(PAYLOAD)
-        data['continuation'] = token
-        async with session.post(
-            BROWSE_ENDPOINT, headers = {'User-Agent': USER_AGENT},
-            json = data, timeout = 10
-        ) as response:
-            if response.ok is False:
-                print('bad response: ', response.status, response.reason)
-                return response.ok
-            
-            video_data = await response.json()
-            video_rows, token = parse_videos(video_data, channel_link, is_continuation = True)
-            
-            # empty continaution
-            if video_rows is None:
-                return
-            
-            async with write_lock:
-                video_writer.writerows(video_rows)
 
 
-async def worker(channels_left, session):
-    # async with print_lock:
-    #     print('worker started')
+async def worker(channels_left, session, extractors,
+                 channel_lock = channel_lock, error_lock = error_lock):
     while True:
         async with channel_lock:
             if len(channels_left) == 0:
@@ -109,64 +140,58 @@ async def worker(channels_left, session):
             channel_link = channels_left.pop()
         
         try:
-             ok_response = await collect_videos(channel_link, session)
-             if ok_response is False:
-                async with print_lock:
-                    print("Stopping worker due to bad response (try restarting)")
-                return
+            # get request to get channel id (and for realism)
+            channel_id = await get_channel(channel_link, session)
+            if channel_id is None:
+                continue
+
+            # collect all data from channel using extractors
+            for extractor in extractors:
+                await extractor.extract(session, channel_id, channel_link)
+        except BadResponseException:
+            async with error_lock:
+                print("Stopping worker due to bad response (try restarting)")
         except asyncio.exceptions.TimeoutError:
             # retry the channel
             async with channel_lock:
                 channels_left.append(channel_link)
-            async with print_lock:
+            async with error_lock:
                 print('Caught a timeout')
-        except Exception as e:
-            async with print_lock:
+        except Exception:
+            async with error_lock:
                 print(f'Exception caught for {channel_link} and written to error file')
             async with error_lock:
                 error_file.write(f'Exception caught for {channel_link}\n')
                 error_file.write(traceback.format_exc())
                 error_file.flush()
-        
-        # async with print_lock:
-        #     print('collected all video from the channel', channel_link, end = "\t\t\t\r") 
 
 
 async def main(num_workers):
-    # load all channels
+    # extractors will be used to collect data from different tabs of a channel
+    extractors = [Extractor(**tab) for tab in tab_helpers]
+
+    # read in shuffled channels    
     channels = set()
     with open('shuffled_channels.txt', 'r', encoding = 'utf-8') as f:
         for line in f:
             channels.add(line.strip())
 
-    # continue from previous run or handle cold start
-    with open('channels.csv', 'r', encoding = "utf-8") as f:
-        if f.readline() == '':
-            # cold start
-            channel_writer.writerow(
-                ['link', 'id', 'name', 'subscribers', 'num_videos', 'description', 'isFamilySafe', 'keywords']
-            )
-        else:
-            # read in collected channels
-            collected = []
-            with open('channels.csv', 'r', encoding = 'utf-8') as f:
-                for row in csv.reader(f):
-                    if len(row) == 0:
-                        continue
-                    collected.append(row[0]) ## the link
-            collected_set = set(collected)
-            print(f'found {len(collected_set)} many channels already collected out of {len(channels)}')
+    # continue from previous run if possible
+    collected = []
+    with open('channels.csv', 'r', encoding = 'utf-8') as f:
+        f.readline() # skip header
+        for row in csv.reader(f):
+            if len(row) == 0:
+                continue
+            collected.append(row[0]) ## the link
+    collected_set = set(collected)
+    print(f'found {len(collected_set)} many channels already collected out of {len(channels)}')
 
-            # remove channels already read (but reprocess last 100 channels)
-            channels = channels - collected_set
-            channels = list(channels)
-            channels = channels + collected[-100:]
-            print(f'will reprocess last 100 channels leaving {len(channels)} channels left')
-    with open('videos.csv', 'r', encoding = "utf-8") as f:
-        if f.readline() == '':
-            video_writer.writerow(
-                ['channel_link', 'id', 'title', 'date', 'length', 'views', 'description_snippet']
-            )
+    # remove channels already read (but reprocess last 100 channels)
+    channels = channels - collected_set
+    channels = list(channels)
+    channels = channels + collected[-100:]
+    print(f'will reprocess last 100 channels leaving {len(channels)} channels left')
 
     # use a singular session to benefit from connection pooling
     # use ipv6 (helps with blocks)
@@ -176,9 +201,16 @@ async def main(num_workers):
     ) as session:
         # start the workers
         print('starting workers now, try loading `channels.csv` (say with pandas) to monitor progress')
-        await asyncio.gather(*[
-            worker(channels, session) for _ in range(num_workers)
-        ])
+        try:
+            await asyncio.gather(*[
+                worker(channels, session, extractors) for _ in range(num_workers)
+            ])
+        except (KeyboardInterrupt, Exception):
+            print(traceback.format_exc())
+            
+            for extractor in extractors:
+                extractor.file.flush()
+                extractor.file.close()
 
 
 
@@ -187,10 +219,4 @@ async def main(num_workers):
 if os.name == 'nt': 
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-try:
-    asyncio.run(main(num_workers = 50))
-except (KeyboardInterrupt, Exception) as e:
-    # print("\nfinal exception:", e)
-    print(traceback.format_exc())
-    video_file.close()
-    channel_file.close()
+asyncio.run(main(num_workers = 50))
