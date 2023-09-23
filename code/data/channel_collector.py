@@ -39,7 +39,7 @@ class Extractor():
         self.parse_func = parse_func
         self.features = features
 
-        self.file = open(f'{name}.csv', 'a', encoding = "utf-8")
+        self.file = open(f'{filename}.csv', 'a', encoding = "utf-8")
         self.writer = csv.writer(self.file)
         self.lock = asyncio.Lock()
 

@@ -354,6 +354,7 @@ def parse_featured_channels(channel_link, tab = None, continuation = None, **kwa
     token = None
     for info in channel_infos:
         if 'gridChannelRenderer' in info:
+            info = info['gridChannelRenderer']
             id = getValue(info, ['channelId'])
             url = getValue(info, ['navigationEndpoint', 'commandMetadata', 'webCommandMetadata', 'url'])
             name = getValue(info, ['title', 'simpleText'])
