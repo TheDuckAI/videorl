@@ -189,12 +189,13 @@ async def main(num_workers):
     # remove channels already read (but reprocess last 100 channels)
     channels = channels - collected_set
     channels = list(channels)
-    channels = channels + collected[-100:]
+    print(f'will reprocess last 100 channels leaving {len(channels)} channels left')
 
     # shuffle channels (again to be safe)
     random.shuffle(channels)
 
-    print(f'will reprocess last 100 channels leaving {len(channels)} channels left')
+    # add back last 100 channels after shuffling so they will be reprocessed first
+    channels = channels + collected[-100:]
 
     # use a singular session to benefit from connection pooling
     # use ipv6 (helps with blocks)
