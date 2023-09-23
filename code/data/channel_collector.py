@@ -99,7 +99,6 @@ class Extractor():
                         self.writer.writerows(rows)
 
 
-
 class BadResponseException(Exception):
     pass
 
@@ -126,8 +125,6 @@ async def get_channel(channel_link, session, error_lock = error_lock):
         )
         channel_id = channel_data['metadata']['channelMetadataRenderer']['externalId']
         return channel_id
-        
-        
 
 
 async def worker(channels_left, session, extractors,
