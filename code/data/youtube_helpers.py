@@ -359,6 +359,8 @@ def parse_featured_channels(channel_link, tab = None, continuation = None, **kwa
             url = getValue(info, ['navigationEndpoint', 'commandMetadata', 'webCommandMetadata', 'url'])
             name = getValue(info, ['title', 'simpleText'])
             subscribers = getValue(info, ['subscriberCountText', 'simpleText'])
+            if subscribers is not None:
+                subscribers = text_to_num(subscribers.split(' ')[0].replace(',', '').replace('No', '0'))
             num_shorts_vids = getValue(info, ['videoCountText', 'runs', 0, 'text'])
 
             channels.append([channel_link, id, url, name, subscribers, num_shorts_vids])
