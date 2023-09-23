@@ -33,7 +33,7 @@ error_file = open('collection_errors.txt', 'a', encoding = "utf-8")
 
 
 class Extractor():
-    def __init__(self, name, param, parse_func, features):
+    def __init__(self, name, filename, param, parse_func, features):
         self.name = name
         self.browse_param = param
         self.parse_func = parse_func
@@ -44,7 +44,7 @@ class Extractor():
         self.lock = asyncio.Lock()
 
         # write header if it doesn't exist
-        if os.path.getsize(f'{name}.csv') == 0:
+        if os.path.getsize(f'{filename}.csv') == 0:
             self.writer.writerow(features)
 
 
@@ -177,7 +177,7 @@ async def main(num_workers):
 
     # continue from previous run if possible
     collected = []
-    with open('About.csv', 'r', encoding = 'utf-8') as f:
+    with open('channels.csv', 'r', encoding = 'utf-8') as f:
         f.readline() # skip header
         for row in csv.reader(f):
             if len(row) == 0:
@@ -203,7 +203,7 @@ async def main(num_workers):
         base_url = BASE, connector = conn, cookie_jar = DummyCookieJar()
     ) as session:
         # start the workers
-        print('starting workers now, try loading `About.csv` (say with pandas) to monitor progress')
+        print('starting workers now, try loading `channels.csv` (say with pandas) to monitor progress')
         try:
             await asyncio.gather(*[
                 worker(channels, session, extractors) for _ in range(num_workers)

@@ -370,30 +370,30 @@ def parse_featured_channels(channel_link, tab = None, continuation = None, **kwa
 # organize the parsers
 tab_helpers = [
     {
-        'name': 'About', 'param': 'EgVhYm91dPIGBAoCEgA%3D', 'parse_func': parse_about,
+        'name': 'About', 'filename': 'channels', 'param': 'EgVhYm91dPIGBAoCEgA%3D', 'parse_func': parse_about,
         'features': [
             'link', 'id', 'title', 'subscribers', 'view_count', 'num_vids_shorts', 'join_date', 'country', 'monetization', 'verified',
             'isFamilySafe', 'description', 'tags', 'fullsize_avatar', 'fullsize_banner', 'parsed_links'
         ]
     },
     {
-        'name': 'Videos', 'param': 'EgZ2aWRlb3PyBgQKAjoA', 'parse_func': parse_videos,
+        'name': 'Videos', 'filename': 'videos', 'param': 'EgZ2aWRlb3PyBgQKAjoA', 'parse_func': parse_videos,
         'features': ['link', 'id', 'title', 'approx_date', 'length', 'views', 'description_snippet', 'moving_thumbnails', 'thumbnails']
     },
     {
-        'name': 'Shorts', 'param': 'EgZzaG9ydHPyBgUKA5oBAA%3D%3D', 'parse_func': parse_shorts,
+        'name': 'Shorts', 'filename': 'shorts', 'param': 'EgZzaG9ydHPyBgUKA5oBAA%3D%3D', 'parse_func': parse_shorts,
         'features': ['link', 'id', 'headline', 'viewCountText', 'length', 'thumbnail', 'width', 'height']
     },
     {
-        'name': 'Live', 'param': 'EgdzdHJlYW1z8gYECgJ6AA%3D%3D', 'parse_func': parse_live,
+        'name': 'Live', 'filename': 'livestreams', 'param': 'EgdzdHJlYW1z8gYECgJ6AA%3D%3D', 'parse_func': parse_live,
         'features': ['link', 'id', 'title', 'approx_date', 'length', 'views', 'description_snippet', 'moving_thumbnails', 'thumbnails']
     },
     {
-        'name': 'Playlists', 'param': 'EglwbGF5bGlzdHPyBgQKAkIA', 'parse_func': parse_playlists,
+        'name': 'Playlists', 'filename': 'playlists', 'param': 'EglwbGF5bGlzdHPyBgQKAkIA', 'parse_func': parse_playlists,
         'features': ['link', 'id', 'title', 'num_videos']
     },
     {
-        'name': 'Channels', 'param': 'EghjaGFubmVsc_IGBAoCUgA%3D', 'parse_func': parse_featured_channels,
+        'name': 'Channels', 'filename': 'featured_channels', 'param': 'EghjaGFubmVsc_IGBAoCUgA%3D', 'parse_func': parse_featured_channels,
         'features': ['link', 'id', 'url', 'name', 'subscribers', 'num_shorts_vids']
     },
 ]
