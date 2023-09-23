@@ -1,11 +1,13 @@
 import asyncio
 import socket
 import copy
+import random
 import csv
 import json
 import re
 import os
 import traceback
+
 
 from bs4 import BeautifulSoup as bs4
 
@@ -175,7 +177,7 @@ async def main(num_workers):
 
     # continue from previous run if possible
     collected = []
-    with open('channels.csv', 'r', encoding = 'utf-8') as f:
+    with open('About.csv', 'r', encoding = 'utf-8') as f:
         f.readline() # skip header
         for row in csv.reader(f):
             if len(row) == 0:
@@ -188,6 +190,10 @@ async def main(num_workers):
     channels = channels - collected_set
     channels = list(channels)
     channels = channels + collected[-100:]
+
+    # shuffle channels (again to be safe)
+    random.shuffle(channels)
+
     print(f'will reprocess last 100 channels leaving {len(channels)} channels left')
 
     # use a singular session to benefit from connection pooling
@@ -197,7 +203,7 @@ async def main(num_workers):
         base_url = BASE, connector = conn, cookie_jar = DummyCookieJar()
     ) as session:
         # start the workers
-        print('starting workers now, try loading `channels.csv` (say with pandas) to monitor progress')
+        print('starting workers now, try loading `About.csv` (say with pandas) to monitor progress')
         try:
             await asyncio.gather(*[
                 worker(channels, session, extractors) for _ in range(num_workers)
