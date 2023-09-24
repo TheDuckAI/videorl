@@ -83,6 +83,8 @@ class Extractor():
             df.to_parquet(os.path.join(self.filename, f'{self.filename}_{self.file_number - 1}.parquet'))
 
             # Delete the CSV file
+            self.file.flush()
+            self.file.close()
             os.remove(f'{self.filename}.csv')
 
             # Open a new file for next time
@@ -288,8 +290,8 @@ async def main(num_workers, block_size):
     completion_file.flush()
     completion_file.close()
     for extractor in extractors:
-        extractor.convert_to_parquet_if_large(force = True)
         extractor.file.flush()
+        extractor.convert_to_parquet_if_large(force = True)
         extractor.file.close()
 
 
