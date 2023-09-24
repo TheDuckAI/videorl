@@ -3,13 +3,11 @@ import socket
 import copy
 import random
 import csv
-import json
-import re
+
 import os
 import traceback
 
 
-from bs4 import BeautifulSoup as bs4
 
 from aiohttp import ClientSession, TCPConnector, DummyCookieJar
 from youtube_helpers import (
@@ -17,6 +15,7 @@ from youtube_helpers import (
     BROWSE_ENDPOINT,
     PAYLOAD,
     USER_AGENT,
+    get_channel_id,
     get_tab,
     get_continuation,
     tab_helpers,
@@ -69,7 +68,10 @@ class Extractor():
             if tab is None:
                 return
             
-            rows, token = self.parse_func(channel_link, tab = tab, response = data)
+            rows, token = self.parse_func(
+                channel_link, channel_id = channel_id,
+                tab = tab, response = data
+            )
             
             if rows is not None:
                 async with self.lock:
@@ -119,14 +121,7 @@ async def get_channel(channel_link, session, error_lock = error_lock):
                 print('bad response: ', response.status, response.reason)
             raise BadResponseException()
         
-        html = await response.text()
-        soup = bs4(html, 'html.parser')
-        data_str = 'var ytInitialData = '
-        channel_data = json.loads(
-            soup(text = re.compile(data_str))[0].strip(data_str).strip(';')
-        )
-        channel_id = channel_data['metadata']['channelMetadataRenderer']['externalId']
-        return channel_id
+        return get_channel_id(await response.text())
 
 
 async def worker(channels_left, session, extractors,
@@ -142,6 +137,9 @@ async def worker(channels_left, session, extractors,
             # get request to get channel id (and for realism)
             channel_id = await get_channel(channel_link, session)
             if channel_id is None:
+                async with error_lock:
+                    print(f'Channel {channel_link} not found, skipping')
+                    error_file.write(f'Channel id not found for {channel_link}\n')
                 continue
 
             # collect all data from channel using extractors
@@ -150,6 +148,7 @@ async def worker(channels_left, session, extractors,
         except BadResponseException:
             async with error_lock:
                 print("Stopping worker due to bad response (try restarting)")
+            break
         except asyncio.exceptions.TimeoutError:
             # retry the channel
             async with channel_lock:

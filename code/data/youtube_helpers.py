@@ -1,5 +1,9 @@
+import json
+import re
 from datetime import datetime
+
 from dateutil.relativedelta import relativedelta
+from bs4 import BeautifulSoup as bs4
 
 
 
@@ -119,6 +123,19 @@ def parse_date(date):
     return past_time.strftime("%Y-%m-%d")
 
 
+def get_channel_id(html):
+    soup = bs4(html, 'html.parser')
+    data_str = 'var ytInitialData = '
+    channel_data = json.loads(
+        soup(text = re.compile(data_str))[0].strip(data_str).strip(';')
+    )
+    services = channel_data['responseContext']['serviceTrackingParams']
+    for services in services:
+        for param in services['params']:
+            if param['key'] == 'browse_id':
+                return param['value']
+
+
 def get_tab(response, name):
     tabs = getValue(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs'])
     for tab in tabs:
@@ -139,9 +156,7 @@ def get_continuation(response):
 
 
 ################################### TAB PARSERS ####################################
-def parse_about(channel_link, response = None, tab = None, **kwargs):
-    id = getValue(response, ["metadata", "channelMetadataRenderer", "externalId"])
-
+def parse_about(channel_link, channel_id = None, response = None, tab = None, **kwargs):
     title = getValue(response, ["metadata", "channelMetadataRenderer", "title"])
 
     subscribers = getValue(
@@ -205,7 +220,7 @@ def parse_about(channel_link, response = None, tab = None, **kwargs):
     parsed_links
 
     # use 2d array to match the format of other parsers)
-    return [[channel_link, id, title, subscribers, view_count, num_vids_shorts, join_date, country, monetization, verified,
+    return [[channel_link, channel_id, title, subscribers, view_count, num_vids_shorts, join_date, country, monetization, verified,
             isFamilySafe, description, tags, fullsize_avatar, fullsize_banner, parsed_links]], None
 
 
