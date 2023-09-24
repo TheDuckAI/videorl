@@ -12,6 +12,10 @@ USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101
 BASE = 'https://www.youtube.com'
 ENDPOINT = '/youtubei/v1/next?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8&prettyPrint=false'
 BROWSE_ENDPOINT = '/youtubei/v1/browse?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8&prettyPrint=false'
+HEADER = {
+    'User-Agent': USER_AGENT,
+    'keep_alive': 'True',
+}
 PAYLOAD = {
     "context": {
         "client": {

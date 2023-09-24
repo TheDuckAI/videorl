@@ -14,7 +14,7 @@ from youtube_helpers import (
     BASE,
     BROWSE_ENDPOINT,
     PAYLOAD,
-    USER_AGENT,
+    HEADER,
     get_channel_id,
     get_tab,
     get_continuation,
@@ -57,7 +57,7 @@ class Extractor():
         payload['browseId'] = channel_id
         payload['params'] = self.browse_param
         async with session.post(
-            BROWSE_ENDPOINT, headers = {'User-Agent': USER_AGENT},
+            BROWSE_ENDPOINT, headers = HEADER,
             json = payload, timeout = 10
         ) as response:
             if response.ok is False:
@@ -86,7 +86,7 @@ class Extractor():
             payload = copy.deepcopy(PAYLOAD)
             payload['continuation'] = token
             async with session.post(
-                BROWSE_ENDPOINT, headers = {'User-Agent': USER_AGENT},
+                BROWSE_ENDPOINT, headers = HEADER,
                 json = payload, timeout = 10
             ) as response:
                 if response.ok is False:
@@ -114,10 +114,11 @@ class BadResponseException(Exception):
 ########################## FUNCTION DECLARATIONS ###########################
 async def get_channel(channel_link, session, error_lock = error_lock):
     async with session.get(
-        channel_link, headers = {'User-Agent': USER_AGENT}, timeout = 10
+        channel_link, headers = HEADER,
+        allow_redirects = False, timeout = 10
     ) as response:
         # ignore 404 and just continue
-        if response.status == 404:
+        if response.status == 404 or response.status == 303:
             return None
 
         if response.ok is False:
@@ -141,7 +142,7 @@ async def worker(channels_left, session, extractors,
             # get request to get channel id (and for realism)
             channel_id = await get_channel(channel_link, session)
             if channel_id is None:
-                # 404 and thus ignore
+                # 404 or 303 and thus ignore
                 # parsing errors will raise an assert instead
                 continue
 
@@ -211,12 +212,13 @@ async def main(num_workers):
             ])
         except (KeyboardInterrupt, Exception):
             print(traceback.format_exc())
-            
-            completion_file.flush()
-            completion_file.close()
-            for extractor in extractors:
-                extractor.file.flush()
-                extractor.file.close()
+
+    # clean up
+    completion_file.flush()
+    completion_file.close()
+    for extractor in extractors:
+        extractor.file.flush()
+        extractor.file.close()
 
 
 
@@ -225,4 +227,4 @@ async def main(num_workers):
 if os.name == 'nt': 
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-asyncio.run(main(num_workers = 50))
+asyncio.run(main(num_workers = 40))
