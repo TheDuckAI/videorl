@@ -134,6 +134,7 @@ def get_channel_id(html):
         for param in services['params']:
             if param['key'] == 'browse_id':
                 return param['value']
+    assert False, "Unable to find channel id"
 
 
 def get_tab(response, name):

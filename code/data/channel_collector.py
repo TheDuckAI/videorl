@@ -25,8 +25,12 @@ from youtube_helpers import (
 
 ####################### GLOBAL VARIABLES ############################
 channel_lock = asyncio.Lock()
+
 error_lock = asyncio.Lock()
 error_file = open('collection_errors.txt', 'a', encoding = "utf-8")
+
+completion_lock = asyncio.Lock()
+completion_file = open('fully_collected.txt', 'a', encoding = "utf-8")
 #####################################################################
 
 
@@ -137,14 +141,17 @@ async def worker(channels_left, session, extractors,
             # get request to get channel id (and for realism)
             channel_id = await get_channel(channel_link, session)
             if channel_id is None:
-                async with error_lock:
-                    print(f'Channel {channel_link} not found, skipping')
-                    error_file.write(f'Channel id not found for {channel_link}\n')
+                # 404 and thus ignore
+                # parsing errors will raise an assert instead
                 continue
 
             # collect all data from channel using extractors
             for extractor in extractors:
                 await extractor.extract(session, channel_id, channel_link)
+
+            # write to completion file
+            async with completion_lock:
+                completion_file.write(channel_link + '\n')
         except BadResponseException:
             async with error_lock:
                 print("Stopping worker due to bad response (try restarting)")
@@ -176,12 +183,9 @@ async def main(num_workers):
 
     # continue from previous run if possible
     collected = []
-    with open('channels.csv', 'r', encoding = 'utf-8') as f:
-        f.readline() # skip header
-        for row in csv.reader(f):
-            if len(row) == 0:
-                continue
-            collected.append(row[0]) ## the link
+    with open('fully_collected.txt', 'r', encoding = 'utf-8') as f:
+        for line in f:
+            collected.append(line.strip())
     collected_set = set(collected)
     print(f'found {len(collected_set)} many channels already collected out of {len(channels)}')
 
