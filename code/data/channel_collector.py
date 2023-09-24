@@ -70,7 +70,7 @@ class Extractor():
         # Increment the file number for next time
         self.file_number += 1
 
-    def convert_to_parquet_if_large(self, threshold_gb=.01, tolerance=0.2, force=False):
+    def convert_to_parquet_if_large(self, threshold_gb = 1, tolerance = 0.2, force = False):
         # Get the size of the file in GB
         file_size_gb = os.path.getsize(f'{self.filename}.csv') / (2**30)
 
@@ -302,4 +302,4 @@ if os.name == 'nt':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 if __name__ == '__main__':
-    asyncio.run(main(num_workers = 30, block_size = 30))
+    asyncio.run(main(num_workers = 30, block_size = 500))
