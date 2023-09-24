@@ -68,12 +68,12 @@ class Extractor():
         # Increment the file number for next time
         self.file_number += 1
 
-    def convert_to_parquet_if_large(self, threshold_gb=.01, tolerance=0.2):
+    def convert_to_parquet_if_large(self, threshold_gb=.01, tolerance=0.2, force=False):
         # Get the size of the file in GB
         file_size_gb = os.path.getsize(f'{self.filename}_{self.file_number - 1}.csv') / (2**30)
 
         # Check if the file size is within 20% of the threshold
-        if threshold_gb * (1 - tolerance) <= file_size_gb:
+        if threshold_gb * (1 - tolerance) <= file_size_gb or force:
             # Convert the CSV file to Parquet
             df = pd.read_csv(f'{self.filename}_{self.file_number - 1}.csv')
             df.to_parquet(f'{self.filename}_{self.file_number - 1}.parquet')
@@ -237,6 +237,8 @@ async def launch_workers(channels, extractors, num_workers = 1, block_size = 100
 
         # if len(channels) > 0:
         #     # force compress extractors
+        for extractor in extractors:
+            extractor.convert_to_parquet_if_large()
 
 
 async def main(num_workers, block_size):
@@ -279,6 +281,7 @@ async def main(num_workers, block_size):
     completion_file.flush()
     completion_file.close()
     for extractor in extractors:
+        extractor.convert_to_parquet_if_large(force = True)
         extractor.file.flush()
         extractor.file.close()
 
