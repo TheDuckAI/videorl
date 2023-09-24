@@ -50,6 +50,8 @@ class Extractor():
         self.filename = filename
         self.open_new_file()
 
+        os.makedirs(self.filename, exist_ok = True)
+
         self.lock = asyncio.Lock()
 
     def open_new_file(self):
@@ -58,11 +60,11 @@ class Extractor():
             self.file.close()
 
         # Open a new file with the current number
-        self.file = open(f'{self.filename}_{self.file_number}.csv', 'a', encoding="utf-8")
+        self.file = open(f'{self.filename}.csv', 'a', encoding="utf-8")
         self.writer = csv.writer(self.file)
 
         # Write header if it doesn't exist
-        if os.path.getsize(f'{self.filename}_{self.file_number}.csv') == 0:
+        if os.path.getsize(f'{self.filename}.csv') == 0:
             self.writer.writerow(self.features)
 
         # Increment the file number for next time
@@ -70,13 +72,18 @@ class Extractor():
 
     def convert_to_parquet_if_large(self, threshold_gb=.01, tolerance=0.2, force=False):
         # Get the size of the file in GB
-        file_size_gb = os.path.getsize(f'{self.filename}_{self.file_number - 1}.csv') / (2**30)
+        file_size_gb = os.path.getsize(f'{self.filename}.csv') / (2**30)
 
         # Check if the file size is within 20% of the threshold
         if threshold_gb * (1 - tolerance) <= file_size_gb or force:
             # Convert the CSV file to Parquet
-            df = pd.read_csv(f'{self.filename}_{self.file_number - 1}.csv')
-            df.to_parquet(f'{self.filename}_{self.file_number - 1}.parquet')
+            df = pd.read_csv(f'{self.filename}.csv')
+            
+            # put file in a directory
+            df.to_parquet(os.path.join(self.filename, f'{self.filename}_{self.file_number - 1}.parquet'))
+
+            # Delete the CSV file
+            os.remove(f'{self.filename}.csv')
 
             # Open a new file for next time
             self.open_new_file()
