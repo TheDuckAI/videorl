@@ -143,6 +143,8 @@ def get_channel_id(html):
 
 def get_tab(response, name):
     tabs = getValue(response, ['contents', 'twoColumnBrowseResultsRenderer', 'tabs'])
+    # if tabs is None:
+    #     print(response)
     for tab in tabs:
         if 'tabRenderer' in tab and getValue(tab, ['tabRenderer', 'title']) == name:
             return getValue(tab, ['tabRenderer', 'content'])

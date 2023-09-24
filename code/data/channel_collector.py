@@ -3,13 +3,14 @@ import socket
 import copy
 import random
 import csv
-
 import os
 import traceback
 
 
-
+import pandas as pd
 from aiohttp import ClientSession, TCPConnector, DummyCookieJar
+
+
 from youtube_helpers import (
     BASE,
     BROWSE_ENDPOINT,
@@ -31,6 +32,9 @@ error_file = open('collection_errors.txt', 'a', encoding = "utf-8")
 
 completion_lock = asyncio.Lock()
 completion_file = open('fully_collected.txt', 'a', encoding = "utf-8")
+
+request_lock = asyncio.Lock()
+request_count = 0
 #####################################################################
 
 
@@ -42,16 +46,45 @@ class Extractor():
         self.parse_func = parse_func
         self.features = features
 
-        self.file = open(f'{filename}.csv', 'a', encoding = "utf-8")
-        self.writer = csv.writer(self.file)
+        self.file_number = 1
+        self.filename = filename
+        self.open_new_file()
+
         self.lock = asyncio.Lock()
 
-        # write header if it doesn't exist
-        if os.path.getsize(f'{filename}.csv') == 0:
-            self.writer.writerow(features)
+    def open_new_file(self):
+        # Close the current file if it's open
+        if hasattr(self, 'file'):
+            self.file.close()
+
+        # Open a new file with the current number
+        self.file = open(f'{self.filename}_{self.file_number}.csv', 'a', encoding="utf-8")
+        self.writer = csv.writer(self.file)
+
+        # Write header if it doesn't exist
+        if os.path.getsize(f'{self.filename}_{self.file_number}.csv') == 0:
+            self.writer.writerow(self.features)
+
+        # Increment the file number for next time
+        self.file_number += 1
+
+    def convert_to_parquet_if_large(self, threshold_gb=.01, tolerance=0.2):
+        # Get the size of the file in GB
+        file_size_gb = os.path.getsize(f'{self.filename}_{self.file_number - 1}.csv') / (2**30)
+
+        # Check if the file size is within 20% of the threshold
+        if threshold_gb * (1 - tolerance) <= file_size_gb:
+            # Convert the CSV file to Parquet
+            df = pd.read_csv(f'{self.filename}_{self.file_number - 1}.csv')
+            df.to_parquet(f'{self.filename}_{self.file_number - 1}.parquet')
+
+            # Open a new file for next time
+            self.open_new_file()
 
 
     async def extract(self, session, channel_id, channel_link):
+        global request_count
+        
         # initial request to get load a "selected tab" (e.g. videos, playlists, etc.)
         payload = copy.deepcopy(PAYLOAD)
         payload['browseId'] = channel_id
@@ -60,6 +93,9 @@ class Extractor():
             BROWSE_ENDPOINT, headers = HEADER,
             json = payload, timeout = 10
         ) as response:
+            async with request_lock:
+                request_count += 1
+            
             if response.ok is False:
                 async with error_lock:
                     print('bad response: ', response.status, response.reason)
@@ -89,6 +125,9 @@ class Extractor():
                 BROWSE_ENDPOINT, headers = HEADER,
                 json = payload, timeout = 10
             ) as response:
+                async with request_lock:
+                    request_count += 1
+
                 if response.ok is False:
                     async with error_lock:
                         print('bad response: ', response.status, response.reason)
@@ -113,10 +152,15 @@ class BadResponseException(Exception):
 
 ########################## FUNCTION DECLARATIONS ###########################
 async def get_channel(channel_link, session, error_lock = error_lock):
+    global request_count
+
     async with session.get(
         channel_link, headers = HEADER,
         allow_redirects = False, timeout = 10
     ) as response:
+        async with request_lock:
+            request_count += 1
+
         # ignore 404 and just continue
         if response.status == 404 or response.status == 303:
             return None
@@ -134,7 +178,6 @@ async def worker(channels_left, session, extractors,
     while True:
         async with channel_lock:
             if len(channels_left) == 0:
-                print('worker stopping, all channels collected')
                 break
             channel_link = channels_left.pop()
         
@@ -172,13 +215,37 @@ async def worker(channels_left, session, extractors,
                 error_file.flush()
 
 
-async def main(num_workers):
+async def launch_workers(channels, extractors, num_workers = 1, block_size = 100):
+    # use a singular session to benefit from connection pooling
+    # use ipv6 (helps with blocks)
+    while len(channels) > 0:
+        # get a block of channels
+        block = [channels.pop() for _ in range(min(block_size, len(channels)))]
+        conn = TCPConnector(
+            limit = None, family = socket.AF_INET6, force_close = True, ttl_dns_cache = 300
+        )
+        async with ClientSession(
+            base_url = BASE, connector = conn, cookie_jar = DummyCookieJar()
+        ) as session:
+            # start the workers
+            await asyncio.gather(*[
+                worker(block, session, extractors) for _ in range(num_workers)
+            ])
+        # connection will close here
+
+        print(f'finished block of channels, {len(channels)} left, num requests made: {request_count}', end = '\r')
+
+        # if len(channels) > 0:
+        #     # force compress extractors
+
+
+async def main(num_workers, block_size):
     # extractors will be used to collect data from different tabs of a channel
     extractors = [Extractor(**tab) for tab in tab_helpers]
 
     # read in shuffled channels    
     channels = set()
-    with open('shuffled_channels.txt', 'r', encoding = 'utf-8') as f:
+    with open('shuffled_channels.txt', 'r', encoding = "ISO-8859-1") as f:
         for line in f:
             channels.add(line.strip())
 
@@ -198,20 +265,15 @@ async def main(num_workers):
     # shuffle channels (again to be safe)
     random.shuffle(channels)
 
-    # use a singular session to benefit from connection pooling
-    # use ipv6 (helps with blocks)
-    conn = TCPConnector(limit = None, family = socket.AF_INET6, force_close = True)
-    async with ClientSession(
-        base_url = BASE, connector = conn, cookie_jar = DummyCookieJar()
-    ) as session:
-        # start the workers
-        print('starting workers now, try loading `channels.csv` (say with pandas) to monitor progress')
-        try:
-            await asyncio.gather(*[
-                worker(channels, session, extractors) for _ in range(num_workers)
-            ])
-        except (KeyboardInterrupt, Exception):
-            print(traceback.format_exc())
+    print(f'starting {num_workers} workers now, press ctrl-c to stop')
+    try:
+        await launch_workers(
+            channels, extractors, num_workers = num_workers, block_size = block_size
+        )
+    except (KeyboardInterrupt, Exception):
+        print(traceback.format_exc())
+
+    print('number of requests made:', request_count)
 
     # clean up
     completion_file.flush()
@@ -227,4 +289,5 @@ async def main(num_workers):
 if os.name == 'nt': 
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
-asyncio.run(main(num_workers = 40))
+if __name__ == '__main__':
+    asyncio.run(main(num_workers = 30, block_size = 30))
