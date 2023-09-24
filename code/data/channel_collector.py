@@ -189,16 +189,13 @@ async def main(num_workers):
     collected_set = set(collected)
     print(f'found {len(collected_set)} many channels already collected out of {len(channels)}')
 
-    # remove channels already read (but reprocess last 100 channels)
+    # remove channels already read
     channels = channels - collected_set
     channels = list(channels)
-    print(f'will reprocess last 100 channels leaving {len(channels)} channels left')
+    print(f'continuing with {len(channels)} many channels, now shuffling...')
 
     # shuffle channels (again to be safe)
     random.shuffle(channels)
-
-    # add back last 100 channels after shuffling so they will be reprocessed first
-    channels = channels + collected[-100:]
 
     # use a singular session to benefit from connection pooling
     # use ipv6 (helps with blocks)
@@ -215,6 +212,8 @@ async def main(num_workers):
         except (KeyboardInterrupt, Exception):
             print(traceback.format_exc())
             
+            completion_file.flush()
+            completion_file.close()
             for extractor in extractors:
                 extractor.file.flush()
                 extractor.file.close()
