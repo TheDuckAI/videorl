@@ -37,6 +37,7 @@ class PerceiverVisionEncoder(nn.Module):
         self.vision_encoder, _, self.image_processor = open_clip.create_model_and_transforms(
             "ViT-L-14", pretrained="openai")
         self.vision_encoder = self.vision_encoder.visual
+        self.vision_encoder.output_tokens = True
         self.vis_dim = open_clip.get_model_config("ViT-L-14")["vision_cfg"]["width"]
         self.perceiver = PerceiverResampler(dim=self.vis_dim)
 
