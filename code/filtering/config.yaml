@@ -1,0 +1,13 @@
+# Hyperparameters for Quality Score
+w1: 0.6
+w2: 0.4
+
+# Choice of metric for video movement (can be SSIM or MSE)
+metric: SSIM
+
+# video2dataset configuration
+url_col: url
+caption_col: caption
+
+# Data Split
+test_size: 0.2
