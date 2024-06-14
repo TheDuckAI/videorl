@@ -1,0 +1,13 @@
+{
+    "extend_layers" : [
+	{
+		"new_layer": "LoraExtender",
+		"params": {"test": 1},
+        "use_default_match": true
+	},
+	{
+		"match_type": "*GPTNeoXAttention",
+		"new_layer": "BaseLayerExtender"
+	}	
+]
+}
